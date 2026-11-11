@@ -37,9 +37,10 @@ export function Scan() {
       };
       if (!text) toast('Could not read the photo. Please type the details.', true);
       replace({ name: 'review', draft });
-    } catch {
+    } catch (e) {
       setBusy(false);
-      toast('Something went wrong with the photo. Please try again.', true);
+      const msg = (e as Error)?.message;
+      toast(msg && msg.length < 160 ? msg : 'Something went wrong with the photo. Please try again.', true);
     }
   }
 

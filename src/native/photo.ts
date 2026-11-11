@@ -22,9 +22,19 @@ function pickFileOnWeb(): Promise<PickedPhoto | null> {
   });
 }
 
+/** Asks for camera permission if needed. Throws a clear message if it is refused. */
+async function ensureCamera(): Promise<void> {
+  let st = await Camera.checkPermissions();
+  if (st.camera !== 'granted') st = await Camera.requestPermissions({ permissions: ['camera'] });
+  if (st.camera !== 'granted') {
+    throw new Error('The camera is off. Turn it on in phone Settings > Apps > Kashawt > Permissions > Camera.');
+  }
+}
+
 /** Returns null when the person cancels. */
 export async function takePhoto(): Promise<PickedPhoto | null> {
   if (!isNative) return pickFileOnWeb();
+  await ensureCamera();
   try {
     const r = await Camera.takePhoto({ quality: 90, correctOrientation: true });
     if (!r.webPath) return null;
