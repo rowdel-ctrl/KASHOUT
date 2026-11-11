@@ -29,6 +29,9 @@ export interface DataApi {
   /** Deletes records older than one year. */
   purgeOld(): Promise<void>;
 
+  /** The shared alert topic for this store. Created once, then the same on every phone. Empty if not ready. */
+  getAlertTopic(): Promise<string>;
+
   subscribeFees(cb: (table: FeeTier[] | null) => void): () => void;
   saveFees(table: FeeTier[]): Promise<void>;
 }

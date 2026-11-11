@@ -27,7 +27,7 @@ const BANDS: { value: AmountBand; label: string }[] = [
 ];
 
 export function Records({ initialPeriod }: { initialPeriod?: Period }) {
-  const { records, go, settings, toast } = useApp();
+  const { records, go, alertTopic, toast } = useApp();
   const wide = useWide();
   const [f, setF] = useState<Filters>({ ...DEFAULT_FILTERS, period: initialPeriod ?? 'today' });
   const [sheet, setSheet] = useState<'period' | 'filters' | 'export' | null>(null);
@@ -52,8 +52,8 @@ export function Records({ initialPeriod }: { initialPeriod?: Period }) {
   }
 
   async function sendSummary() {
-    if (!settings.ntfyTopic.trim()) return toast('Add your alert code in Settings first.', true);
-    const ok = await sendNtfy(settings.ntfyTopic, `Closing ${label}: ${sum.count} cash-outs, ${peso(sum.total)}`);
+    if (!alertTopic) return toast('Alerts are not ready yet. Check your internet.', true);
+    const ok = await sendNtfy(alertTopic, `Closing ${label}: ${sum.count} cash-outs, ${peso(sum.total)}`);
     toast(ok ? 'Summary sent' : 'Could not send. Check your internet.', !ok);
   }
 

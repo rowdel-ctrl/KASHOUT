@@ -13,6 +13,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   initializeFirestore,
   limit,
@@ -132,6 +133,28 @@ export function createFirebaseApi(cfg: FirebaseSettings): DataApi {
       const batch = writeBatch(db);
       snap.docs.forEach((d) => batch.delete(d.ref));
       await batch.commit();
+    },
+
+    async getAlertTopic() {
+      const ref = doc(db, 'shared', 'alerts');
+      const read = async () => {
+        try {
+          const t = (await getDoc(ref)).data()?.topic;
+          return typeof t === 'string' && t.length >= 16 ? t : '';
+        } catch {
+          return '';
+        }
+      };
+      const existing = await read();
+      if (existing) return existing;
+      // First phone to open the app creates the topic. Everyone else reads it.
+      const bytes = crypto.getRandomValues(new Uint8Array(12));
+      const topic = 'kashawt-' + [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+      const created = await Promise.race([
+        setDoc(ref, { topic }).then(() => true).catch(() => false),
+        new Promise<boolean>((res) => setTimeout(() => res(false), 8000)),
+      ]);
+      return created ? topic : await read();
     },
 
     subscribeFees(cb) {

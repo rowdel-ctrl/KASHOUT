@@ -46,7 +46,7 @@ service cloud.firestore {
             || resource.data.savedAt < request.time.toMillis() - 31536000000);
     }
 
-    // Shared app settings (the fee table).
+    // Shared app settings: the fee table, and the alert topic.
     match /shared/{doc} {
       allow read: if allowed();
       allow create, update: if allowed()
@@ -55,6 +55,13 @@ service cloud.firestore {
         && request.resource.data.feeTable is list
         && request.resource.data.feeTable.size() > 0
         && request.resource.data.feeTable.size() <= 60;
+      // The first phone creates the alert topic. It can never be changed after that.
+      allow create: if allowed()
+        && doc == 'alerts'
+        && request.resource.data.keys().hasOnly(['topic'])
+        && request.resource.data.topic is string
+        && request.resource.data.topic.size() >= 16
+        && request.resource.data.topic.size() <= 64;
     }
   }
 }

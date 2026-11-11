@@ -107,3 +107,25 @@ describe('shared settings', () => {
     await assertFails(setDoc(doc(stranger(env), 'shared', 'settings'), { feeTable: [{ upTo: 200, fee: 5 }] }));
   });
 });
+
+describe('alert topic', () => {
+  const topic = 'kashawt-0123456789abcdef01234567';
+
+  it('the first allowed phone creates it and everyone allowed can read it', async () => {
+    await assertSucceeds(setDoc(doc(ana(env), 'shared', 'alerts'), { topic }));
+    await assertSucceeds(getDoc(doc(ana(env), 'shared', 'alerts')));
+  });
+
+  it('cannot be changed once it exists', async () => {
+    await assertSucceeds(setDoc(doc(ana(env), 'shared', 'alerts'), { topic }));
+    await assertFails(setDoc(doc(ana(env), 'shared', 'alerts'), { topic: 'kashawt-ffffffffffffffffffffffff' }));
+  });
+
+  it('is blocked for accounts not on the list, and for short or odd values', async () => {
+    await assertFails(setDoc(doc(stranger(env), 'shared', 'alerts'), { topic }));
+    await assertFails(getDoc(doc(stranger(env), 'shared', 'alerts')));
+    await assertFails(setDoc(doc(ana(env), 'shared', 'alerts'), { topic: 'short' }));
+    await assertFails(setDoc(doc(ana(env), 'shared', 'alerts'), { topic, extra: 1 }));
+  });
+});
+

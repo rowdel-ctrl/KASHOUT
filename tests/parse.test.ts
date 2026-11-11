@@ -107,3 +107,58 @@ describe('extractRef', () => {
     expect(extractRef('hello world')).toEqual({ ref: '', ok: false });
   });
 });
+
+describe('names and numbers in other layouts', () => {
+  it('masked number with asterisks and spaces', () => {
+    const r = parseReceipt('Express Send\nJU***N D.\n+63 917 *** 4501\nAmount 300.00\nRef No. 6046809238177');
+    expect(r.number).toBe('+63 917 *** 4501');
+    expect(r.name).toBe('JU***N D.');
+  });
+
+  it('number with the dots read as the letter O', () => {
+    const r = parseReceipt('MA***A R.\n+63 9OOOOOO4822\nAmount 3,500.00');
+    expect(r.number).toBe('+63 9●●●●●●4822');
+    expect(r.name).toBe('MA***A R.');
+  });
+
+  it('number written 09XX XXX 4822', () => {
+    const r = parseReceipt('LU**Y T.\n09XX XXX 4822');
+    expect(r.number).toBe('09XX XXX 4822');
+    expect(r.name).toBe('LU**Y T.');
+  });
+
+  it('name and number on the same line', () => {
+    const r = parseReceipt('Received from EX*****S L. +639171234501 Amount 300.00');
+    expect(r.name).toBe('EX*****S L.');
+    expect(r.number).toBe('09171234501');
+  });
+
+  it('name below the number', () => {
+    const r = parseReceipt('Sent via GCash\n09171234501\nJOSE D.\nAmount 300.00');
+    expect(r.number).toBe('09171234501');
+    expect(r.name).toBe('JOSE D.');
+  });
+
+  it('name wrapped across two lines before the number', () => {
+    const r = parseReceipt('You have received PHP 500.00 from MARIA CLARA\nS. +639171234501 w/ MSG: .');
+    expect(r.name).toBe('MARIA CLARA S.');
+    expect(r.number).toBe('09171234501');
+  });
+
+  it('name from "from" when the number is unreadable', () => {
+    const r = parseReceipt('You have received PHP 500.00 from JUAN D. w/ MSG: . Your new balance is PHP 524.63.');
+    expect(r.name).toBe('JUAN D.');
+    expect(r.number).toBe('');
+  });
+
+  it('does not use a bank name or label as the customer name', () => {
+    const r = parseReceipt('Received GCash from MariBank with account ending in 5034\nAmount +1,000.00');
+    expect(r.name).toBe('');
+  });
+
+  it('does not use the phrase "Sent via GCash" as a name', () => {
+    const r = parseReceipt('Sent via GCash\n+639171234501\nAmount 300.00');
+    expect(r.name).toBe('');
+    expect(r.number).toBe('09171234501');
+  });
+});

@@ -106,33 +106,71 @@ export function extractDateTime(text: string): number | null {
   return null;
 }
 
-const MASK = '●•*xX';
+/** Characters that hide digits in a masked number (and ones OCR confuses them with). */
+const MASK_CHARS = '●•*xX·○◦#_';
+const MASKED_PHONE = new RegExp(`(?:\\+\\s?63|63|0)\\s?9[\\dOo\\s${MASK_CHARS}.\\-]{5,16}\\d{2,4}(?!\\d)`, 'g');
+const HAS_MASK = new RegExp(`[${MASK_CHARS}]|[Oo]{3,}`);
 
-export function extractPhone(text: string): { number: string; index: number } {
+export function extractPhone(text: string): { number: string; index: number; end: number } {
   const full = /(?:\+?63|0)[\s-]?(9\d{2})[\s-]?(\d{3})[\s-]?(\d{4})(?!\d)/.exec(text);
-  if (full) return { number: `0${full[1]}${full[2]}${full[3]}`, index: full.index };
-  const masked = new RegExp(`(?:\\+?63|0)\\s?9[\\d\\s${MASK}]{5,12}\\d{2,4}(?!\\d)`).exec(text);
-  if (masked && new RegExp(`[${MASK}]`).test(masked[0])) {
-    return { number: masked[0].trim(), index: masked.index };
+  if (full) return { number: `0${full[1]}${full[2]}${full[3]}`, index: full.index, end: full.index + full[0].length };
+  MASKED_PHONE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = MASKED_PHONE.exec(text))) {
+    if (HAS_MASK.test(m[0])) {
+      // OCR often reads the dots as the letter O. Show them as dots again.
+      const shown = m[0].trim().replace(/[Oo]{3,}/g, (r) => '●'.repeat(r.length));
+      return { number: shown, index: m.index, end: m.index + m[0].length };
+    }
   }
-  return { number: '', index: -1 };
+  return { number: '', index: -1, end: -1 };
 }
 
-const SKIP_LINE = /transfer from|express send|notification|received gcash|transaction|sent via|gcash|amount|total|date|reference|ref\b/i;
+const SKIP_LINE = /transfer from|express send|notification|received gcash|transaction|sent via|gcash|amount|total|date|time|reference|ref\b|balance|bank|account|msg|fee|status|successful|share|home|done|back/i;
 
-export function extractName(text: string, phoneIndex: number): string {
-  const between = /\bfrom\s+([^\d+\n]{2,40}?)\s*(?:\+?63|09)/i.exec(text);
-  if (between) {
-    const n = between[1].trim();
-    if (n && !/^(gcash|mari)/i.test(n)) return n;
-  }
+function cleanName(raw: string): string {
+  const n = raw.replace(/\s+/g, ' ').replace(/^[\s:,-]+|[\s:,-]+$/g, '');
+  if (!n || /\d/.test(n) || n.length < 2 || n.length > 40) return '';
+  if (SKIP_LINE.test(n) && !/[*•●]/.test(n)) return '';
+  return n;
+}
+
+export function extractName(text: string, phoneIndex: number, phoneEnd: number = -1): string {
   if (phoneIndex >= 0) {
     const before = text.slice(0, phoneIndex);
-    const sameLine = before.slice(before.lastIndexOf('\n') + 1).trim();
-    if (sameLine && !/\d/.test(sameLine) && !SKIP_LINE.test(sameLine)) return sameLine;
-    const lines = before.split('\n').map((l) => l.trim()).filter(Boolean);
-    const prev = lines.length ? lines[lines.length - (sameLine ? 2 : 1)] : '';
-    if (prev && !/\d/.test(prev) && !SKIP_LINE.test(prev)) return prev;
+
+    // 1. "... from NAME +63 9..." (the name may wrap onto the next line)
+    const idx = before.toLowerCase().lastIndexOf('from ');
+    if (idx >= 0 && before.length - idx <= 70) {
+      const n = cleanName(before.slice(idx + 5));
+      if (n && !/^(gcash|maribank|bank)\b/i.test(n)) return n;
+    }
+
+    // 2. On the same line, before the number.
+    const lineStart = before.lastIndexOf('\n') + 1;
+    const sameLine = cleanName(before.slice(lineStart));
+    if (sameLine) return sameLine;
+
+    // 3. The line above the number.
+    const lines = before.slice(0, lineStart).split('\n').map((l) => l.trim()).filter(Boolean);
+    for (let i = lines.length - 1; i >= Math.max(0, lines.length - 2); i--) {
+      const n = cleanName(lines[i]);
+      if (n) return n;
+    }
+
+    // 4. The line below the number.
+    const after = text.slice(phoneEnd >= 0 ? phoneEnd : phoneIndex).split('\n').map((l) => l.trim()).filter(Boolean);
+    for (const l of after.slice(0, 2)) {
+      const n = cleanName(l);
+      if (n) return n;
+    }
+  }
+
+  // No number found: take the words after "from".
+  const m = /\bfrom\s+([A-Za-z][^\d\n+]{1,38}?)(?=\s*(?:\+|\d|\n|\sw\/|$))/i.exec(text);
+  if (m) {
+    const n = cleanName(m[1]);
+    if (n && !/\b(bank|account|gcash|with|ending)\b/i.test(n)) return n;
   }
   return '';
 }
@@ -145,7 +183,7 @@ export function parseReceipt(text: string): ParsedReceipt {
     refOk: ok,
     amount: extractAmount(text),
     txAt: extractDateTime(text),
-    name: extractName(text, phone.index),
+    name: extractName(text, phone.index, phone.end),
     number: phone.number,
   };
 }

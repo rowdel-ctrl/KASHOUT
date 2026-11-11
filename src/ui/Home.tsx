@@ -12,7 +12,7 @@ export function Home() {
 
   return (
     <>
-      <main className="page wide has-nav">
+      <main className="page wide has-nav home">
         <div className="row-between">
           <div>
             <div className="muted">Hi, {user.name}</div>

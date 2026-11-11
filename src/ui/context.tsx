@@ -18,6 +18,7 @@ interface Ctx {
   user: AppUser;
   records: CashRecord[];
   syncLabel: { text: string; wait: boolean };
+  alertTopic: string;
   settings: Settings;
   updateSettings: (patch: Partial<Settings>) => void;
   fees: FeeTier[];
@@ -54,6 +55,9 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
   const [online, setOnline] = useState(navigator.onLine);
   const [denied, setDenied] = useState(false);
   const [fees, setFees] = useState<FeeTier[]>(DEFAULT_FEES);
+  const [alertTopic, setAlertTopic] = useState('');
+  const topicRef = useRef('');
+  topicRef.current = alertTopic;
   const [stack, setStack] = useState<Route[]>([{ name: 'home' }]);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [undo, setUndo] = useState<UndoState | null>(null);
@@ -96,6 +100,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
     const offFees = api.subscribeFees((t) => setFees(t ?? DEFAULT_FEES));
     const offErr = api.onWriteError((m) => toast(m, true));
     api.purgeOld().catch(() => {});
+    void api.getAlertTopic().then(setAlertTopic);
     return () => {
       offRecords();
       offFees();
@@ -141,7 +146,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
       window.clearTimeout(undoTimer.current);
       undoTimer.current = window.setTimeout(() => setUndo(null), 5000);
       void buzzSaved();
-      void sendNtfy(s.ntfyTopic, `${user.name}: ${peso(amount)} cashed out`);
+      void sendNtfy(topicRef.current, `${user.name}: ${peso(amount)} cashed out`);
       setStack([{ name: 'home' }]);
     },
     [user],
@@ -168,7 +173,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
 
   return (
     <AppCtx.Provider
-      value={{ user, records, syncLabel, settings, updateSettings, fees, route, go, replace, back, tab, toast, undo, saveDraft, undoSave, signOut }}
+      value={{ user, records, syncLabel, alertTopic, settings, updateSettings, fees, route, go, replace, back, tab, toast, undo, saveDraft, undoSave, signOut }}
     >
       {children({ route, toasts, denied })}
     </AppCtx.Provider>

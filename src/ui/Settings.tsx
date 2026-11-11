@@ -3,7 +3,7 @@ import { api } from '../data';
 import { DEFAULT_FEES, tierLabel } from '../lib/fees';
 import { parseMoney, peso } from '../lib/format';
 import type { FeeTier, TextSize, Theme } from '../lib/types';
-import { setClosingReminder } from '../native/alerts';
+import { openAlertsApp, sendNtfy, setClosingReminder } from '../native/alerts';
 import { Icon } from './icons';
 import { NavBar, OptionSheet, Switch, TopBar } from './components';
 import { useApp } from './context';
@@ -28,7 +28,7 @@ const LIMITS: { value: number; label: string }[] = [
 ];
 
 export function SettingsScreen() {
-  const { settings, updateSettings, go, toast, user, signOut } = useApp();
+  const { settings, updateSettings, go, toast, user, signOut, alertTopic } = useApp();
   const [sheet, setSheet] = useState<'size' | 'theme' | 'limit' | null>(null);
 
   async function toggleReminder(on: boolean) {
@@ -109,10 +109,28 @@ export function SettingsScreen() {
           </div>
           <div className="item">
             <span className="grow">
-              <label htmlFor="topic">Alert code</label>
-              <small>Secret. Stays on this phone.</small>
+              Phone alerts
+              <small>Get an alert when someone saves. Needs the free ntfy app.</small>
             </span>
-            <input id="topic" className="code" type="password" autoComplete="off" value={settings.ntfyTopic} onChange={(e) => updateSettings({ ntfyTopic: e.target.value })} />
+            <button className="chipbtn" onClick={() => alertTopic ? void openAlertsApp(alertTopic) : toast('Alerts are not ready yet. Check your internet.', true)}>
+              Turn on
+            </button>
+          </div>
+          <div className="item">
+            <span className="grow">
+              Send a test alert
+              <small>Everyone with alerts on gets it</small>
+            </span>
+            <button
+              className="chipbtn"
+              onClick={async () => {
+                if (!alertTopic) return toast('Alerts are not ready yet. Check your internet.', true);
+                const ok = await sendNtfy(alertTopic, `Test alert from ${user.name}`);
+                toast(ok ? 'Test alert sent' : 'Could not send. Check your internet.', !ok);
+              }}
+            >
+              Send
+            </button>
           </div>
         </div>
 

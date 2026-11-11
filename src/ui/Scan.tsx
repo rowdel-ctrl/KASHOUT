@@ -35,6 +35,7 @@ export function Scan() {
         txAt: p.txAt,
         thumb,
         photoUrl: photo.webPath,
+        rawText: text,
         refRead: p.refOk,
       };
       if (!text) toast('Could not read the photo. Please type the details.', true);

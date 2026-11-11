@@ -120,11 +120,14 @@ In your GitHub repository: **Settings → Secrets and variables → Actions → 
 
 **Updating later:** build a new APK and install it over the old one. Records are not lost. This only works if you sign with the same key every time.
 
-**Alerts to other phones (optional):**
-1. Pick a long secret name, for example `cashout-9f3k2x7q` (do not use the store name).
-2. On each phone, install the free **ntfy** app and subscribe to that name.
-3. In Kashawt: **Settings → Alert code**, type the same name.
-4. The message has only the person's name and the amount. No reference number and no customer data.
+**Alerts when someone saves a cash-out (automatic):**
+1. Kashawt makes one secret alert name for your store the first time it opens. All your phones share it. Nobody types a code.
+2. Install the free **ntfy** app from the Play Store on each phone (once).
+3. In Kashawt, open **Settings** and tap **Turn on** next to **Phone alerts**. It opens ntfy already set up. Tap **Subscribe**.
+4. Tap **Send** next to **Send a test alert** to check that every phone gets it.
+5. From then on, every saved cash-out sends a short alert like "Ana: ₱500 cashed out" to every phone with alerts on. It has no reference number and no customer name.
+
+Alerts only work on phones that did step 3. The phone that saved also gets its own alert.
 
 ---
 
@@ -137,9 +140,10 @@ Do these once, with fake or test receipts.
 3. **Duplicate.** Save the same reference twice. The second time you get **Already saved** with who and when.
 4. **Not on the list.** Sign in with a Google account that is not on the allowlist. You should see **This account is not allowed** and no records.
 5. **Undo.** Save, tap **Undo** within 5 seconds. The record disappears and the form comes back.
-6. **Closing and export.** Open **Records**. The Closing card shows the total for the dates you chose. Tap **Send** for the summary alert, and **Export** for Excel or PDF.
-7. **Dark mode and text size.** Open **Settings** and try **Theme** and **Text size**.
-8. **Delete.** Open a record you saved and tap **Delete this record** twice. You cannot delete a record someone else saved.
+6. **Alerts.** On phone A, open Settings and tap **Send a test alert**. Phone B (with alerts on) should show it. Then save a cash-out on phone A. Phone B should get "Name: amount cashed out".
+7. **Closing and export.** Open **Records**. The Closing card shows the total for the dates you chose. Tap **Send** for the summary alert, and **Export** for Excel or PDF.
+8. **Dark mode and text size.** Open **Settings** and try **Theme** and **Text size**.
+9. **Delete.** Open a record you saved and tap **Delete this record** twice. You cannot delete a record someone else saved.
 
 You can also test the security rules on a computer: `npm run test:rules` (needs Java).
 

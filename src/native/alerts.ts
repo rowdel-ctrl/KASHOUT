@@ -1,3 +1,4 @@
+import { AppLauncher } from '@capacitor/app-launcher';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { isNative } from './platform';
 
@@ -40,5 +41,24 @@ export async function setClosingReminder(on: boolean): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+/** Opens the ntfy app already subscribed to this store's topic. Falls back to the Play Store, or the ntfy website. */
+export async function openAlertsApp(topic: string): Promise<void> {
+  if (!isNative) {
+    window.open(`https://ntfy.sh/${encodeURIComponent(topic)}`, '_blank');
+    return;
+  }
+  try {
+    const r = await AppLauncher.openUrl({ url: `ntfy://ntfy.sh/${encodeURIComponent(topic)}` });
+    if (r.completed) return;
+  } catch {
+    /* ntfy is not installed */
+  }
+  try {
+    await AppLauncher.openUrl({ url: 'market://details?id=io.heckel.ntfy' });
+  } catch {
+    window.open('https://play.google.com/store/apps/details?id=io.heckel.ntfy', '_blank');
   }
 }

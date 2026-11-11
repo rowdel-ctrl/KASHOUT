@@ -56,6 +56,9 @@ export function createMemoryApi(): DataApi {
       return () => errCbs.delete(cb);
     },
     async purgeOld() {},
+    async getAlertTopic() {
+      return 'kashawt-demo-0000000000000000';
+    },
     subscribeFees(cb) {
       feeCbs.add(cb);
       cb(fees);

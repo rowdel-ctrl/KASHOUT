@@ -44,8 +44,6 @@ export interface Settings {
   tourDone: boolean;
   /** Daily reminder at 8 PM to open Closing. */
   closingReminder: boolean;
-  /** Secret ntfy.sh topic. Stored on this phone only. */
-  ntfyTopic: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -56,7 +54,6 @@ export const DEFAULT_SETTINGS: Settings = {
   savePhoto: true,
   tourDone: false,
   closingReminder: false,
-  ntfyTopic: '',
 };
 
 export interface Draft {
@@ -70,6 +67,8 @@ export interface Draft {
   thumb?: string;
   /** Full-size picture for "View photo" (this phone only, not saved). */
   photoUrl?: string;
+  /** The text the app read from the photo (for "What the app read"). */
+  rawText?: string;
   /** False when the app could not find a valid 13-digit reference. */
   refRead: boolean;
 }

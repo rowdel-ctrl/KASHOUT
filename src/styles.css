@@ -358,3 +358,24 @@ input.box:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-
 @media (min-width: 768px) { .hide-narrow { display: block; } }
 
 .box span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Home fills the screen: no gaps cut off, no big empty space */
+.page.home { display: flex; flex-direction: column; }
+.page.home .home-grid { flex: 1; margin-top: 16px; gap: 16px; }
+.home-grid .left { display: flex; flex-direction: column; gap: 14px; flex: 1 1 auto; min-height: 0; }
+.hero { flex: 1 1 220px; height: auto; min-height: 170px; max-height: 380px; }
+@media (max-height: 720px) {
+  .hero { min-height: 140px; gap: 8px; }
+  .hero .ring { width: 60px; height: 60px; }
+  .hero .ring svg { width: 30px; height: 30px; }
+  .hero b { font-size: 22px; }
+  .stat { padding: 10px 14px; }
+  .stat b { font-size: 20px; }
+}
+@media (min-width: 768px) {
+  .page.home .home-grid { flex: 0 0 auto; }
+  .home-grid .left { flex: 0 0 340px; }
+  .hero { flex: 0 0 340px; height: 340px; max-height: none; }
+}
+.chipbtn { flex: none; height: 44px; padding: 0 18px; border: 0; border-radius: 14px; background: var(--green-soft); color: var(--green-text); font-size: 15px; font-weight: 800; }
+.rawtext { margin: 0; padding: 12px 14px; max-height: 40dvh; overflow: auto; border-radius: 14px; background: var(--bg); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; line-height: 1.5; white-space: pre-wrap; word-break: break-word; user-select: text; }

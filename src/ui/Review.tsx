@@ -11,7 +11,7 @@ export function Review({ initial }: { initial: Draft }) {
   const { settings, fees, records, saveDraft, tab } = useApp();
   const [d, setD] = useState<Draft>(initial);
   const [dup, setDup] = useState<CashRecord | null>(null);
-  const [sheet, setSheet] = useState<'fee' | 'customer' | null>(null);
+  const [sheet, setSheet] = useState<'fee' | 'customer' | 'read' | null>(null);
   const [viewing, setViewing] = useState(false);
 
   const refDigits = d.ref.replace(/\s+/g, '');
@@ -52,9 +52,16 @@ export function Review({ initial }: { initial: Draft }) {
             <b>{photo ? 'We read this from your photo' : 'Type the receipt details'}</b>
             <p>{photo ? 'Check each box. Tap one to fix it.' : 'Copy them from the GCash receipt.'}</p>
             {photo && (
-              <button className="link" onClick={() => setViewing(true)}>
-                View photo
-              </button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button className="link" onClick={() => setViewing(true)}>
+                  View photo
+                </button>
+                {d.rawText !== undefined && (
+                  <button className="link" onClick={() => setSheet('read')}>
+                    What the app read
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -156,6 +163,18 @@ export function Review({ initial }: { initial: Draft }) {
           </div>
           <button className="btn btn-soft" style={{ marginTop: 14 }} onClick={() => setSheet(null)}>
             Done
+          </button>
+        </Sheet>
+      )}
+
+      {sheet === 'read' && (
+        <Sheet title="What the app read" onClose={() => setSheet(null)}>
+          <p className="muted" style={{ fontSize: 15, marginTop: -4, marginBottom: 10 }}>
+            This is the text the app found in the photo. If a field is wrong, send a screenshot of this to the developer. Hide real numbers first.
+          </p>
+          <pre className="rawtext">{d.rawText ? d.rawText : '(nothing was read)'}</pre>
+          <button className="btn btn-soft" style={{ marginTop: 14 }} onClick={() => setSheet(null)}>
+            Close
           </button>
         </Sheet>
       )}
