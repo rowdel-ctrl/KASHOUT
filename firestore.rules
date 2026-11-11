@@ -39,7 +39,11 @@ service cloud.firestore {
       // so two phones cannot both save the same reference.
       allow create: if allowed() && validRecord(request.resource.data);
       allow update: if false;
-      allow delete: if allowed();
+      // Only the person who saved a record can delete it (Undo and Delete).
+      // Anyone on the list may delete a record older than one year (automatic cleanup).
+      allow delete: if allowed()
+        && (resource.data.byUid == request.auth.uid
+            || resource.data.savedAt < request.time.toMillis() - 31536000000);
     }
 
     // Shared app settings (the fee table).

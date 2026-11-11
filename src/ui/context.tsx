@@ -7,6 +7,7 @@ import {
   type AppUser, type CashRecord, type Draft, type FeeTier, type NewRecord, type Route, type Settings,
 } from '../lib/types';
 import { sendNtfy } from '../native/alerts';
+import { buzzSaved } from '../native/haptics';
 import { isNative } from '../native/platform';
 import type { SyncState } from '../data/api';
 
@@ -139,6 +140,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
       setUndo({ id, draft: d });
       window.clearTimeout(undoTimer.current);
       undoTimer.current = window.setTimeout(() => setUndo(null), 5000);
+      void buzzSaved();
       void sendNtfy(s.ntfyTopic, `${user.name}: ${peso(amount)} cashed out`);
       setStack([{ name: 'home' }]);
     },

@@ -27,7 +27,7 @@ beforeEach(async () => {
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     await setDoc(doc(db, 'config', 'allowlist'), { emails: ['ana@example.com', 'ben@example.com'] });
-    await setDoc(doc(db, 'records', 'existing'), rec('ben', { ref: '0046809244410' }));
+    await setDoc(doc(db, 'records', 'existing'), rec('ben', { ref: '0046809244410', savedAt: Date.now() }));
   });
 });
 
@@ -78,8 +78,24 @@ describe('records', () => {
     await assertFails(setDoc(doc(db, 'records', 'c'), { ...rec('ana'), extra: 1 }));
   });
 
-  it('lets an allowed user delete (undo, delete record)', async () => {
-    await assertSucceeds(deleteDoc(doc(ana(env), 'records', 'existing')));
+  it('lets the person who saved a record delete it (undo, delete)', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'records', 'mine'), rec('ana'));
+    });
+    await assertSucceeds(deleteDoc(doc(ana(env), 'records', 'mine')));
+  });
+
+  it('does not let someone else delete a record', async () => {
+    await assertFails(deleteDoc(doc(ana(env), 'records', 'existing'))); // saved by ben
+  });
+
+  it('lets anyone on the list delete a record older than one year', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'records', 'old'), rec('ben', { savedAt: Date.now() - 400 * 86_400_000 }));
+      await setDoc(doc(ctx.firestore(), 'records', 'recent'), rec('ben', { savedAt: Date.now() - 300 * 86_400_000 }));
+    });
+    await assertSucceeds(deleteDoc(doc(ana(env), 'records', 'old')));
+    await assertFails(deleteDoc(doc(ana(env), 'records', 'recent')));
   });
 });
 

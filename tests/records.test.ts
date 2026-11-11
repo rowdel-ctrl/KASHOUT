@@ -1,0 +1,133 @@
+import { describe, expect, it } from 'vitest';
+import { applyFilters, inBand, periodLabel, staffNames, summarize } from '../src/lib/records';
+import { reviewWarnings } from '../src/lib/warnings';
+import { DEFAULT_FILTERS, type CashRecord, type Draft, type Filters } from '../src/lib/types';
+
+const NOW = new Date(2026, 10, 11, 15, 0).getTime(); // Nov 11, 2026 3 PM
+const at = (day: number, h = 10) => new Date(2026, 10, day, h, 0).getTime();
+
+const rec = (id: string, over: Partial<CashRecord>): CashRecord => ({
+  id, ref: id.padEnd(13, '0'), amount: 500, fee: 10, name: 'EX*****S L.', number: '09171234501',
+  txAt: null, savedAt: at(11), by: 'Ana', byUid: 'u-ana', ...over,
+});
+
+const R = [
+  rec('1000000000001', { amount: 500, savedAt: at(11) }),
+  rec('1000000000002', { amount: 3500, savedAt: at(11, 14), by: 'Ben', byUid: 'u-ben', name: 'MA***A R.', number: '09XX4822' }),
+  rec('1000000000003', { amount: 1000, savedAt: at(10), by: 'Tita Mel', byUid: 'u-mel' }),
+  rec('1000000000004', { amount: 8000, savedAt: at(5), name: 'RO**L S.' }),
+  rec('1000000000005', { amount: 250, savedAt: at(11, 9) }),
+];
+
+const f = (over: Partial<Filters>): Filters => ({ ...DEFAULT_FILTERS, ...over });
+
+describe('applyFilters', () => {
+  it('today / yesterday / last 7 days / all', () => {
+    expect(applyFilters(R, f({ period: 'today' }), NOW).map((r) => r.id)).toEqual(['1000000000001', '1000000000002', '1000000000005']);
+    expect(applyFilters(R, f({ period: 'yesterday' }), NOW).map((r) => r.id)).toEqual(['1000000000003']);
+    // Last 7 days = Nov 5 to Nov 11 (7 calendar days). A record on Nov 4 is out.
+    expect(applyFilters(R, f({ period: 'week' }), NOW)).toHaveLength(5);
+    expect(applyFilters([...R, rec('1000000000009', { savedAt: at(4, 23) })], f({ period: 'week' }), NOW)).toHaveLength(5);
+    expect(applyFilters(R, f({ period: 'all' }), NOW)).toHaveLength(5);
+  });
+
+  it('custom range includes both end days', () => {
+    expect(applyFilters(R, f({ period: 'custom', from: '2026-11-10', to: '2026-11-11' }), NOW)).toHaveLength(4);
+    expect(applyFilters(R, f({ period: 'custom', from: '2026-11-05', to: '2026-11-05' }), NOW)).toHaveLength(1);
+    expect(applyFilters(R, f({ period: 'custom', from: '2026-11-11' }), NOW)).toHaveLength(3);
+    expect(applyFilters(R, f({ period: 'custom', to: '2026-11-05' }), NOW)).toHaveLength(1);
+  });
+
+  it('amount range', () => {
+    const all = f({ period: 'all' });
+    expect(applyFilters(R, { ...all, amount: 'u1k' }, NOW).map((r) => r.amount)).toEqual([500, 250]);
+    expect(applyFilters(R, { ...all, amount: 'b1k5k' }, NOW).map((r) => r.amount)).toEqual([3500, 1000]);
+    expect(applyFilters(R, { ...all, amount: 'o5k' }, NOW).map((r) => r.amount)).toEqual([8000]);
+    expect(inBand(1000, 'b1k5k')).toBe(true);
+    expect(inBand(5000, 'b1k5k')).toBe(true);
+    expect(inBand(5000.01, 'o5k')).toBe(true);
+  });
+
+  it('staff', () => {
+    expect(applyFilters(R, f({ period: 'all', staff: 'Ben' }), NOW)).toHaveLength(1);
+  });
+
+  it('search by reference, name, number and amount', () => {
+    const all = f({ period: 'all' });
+    expect(applyFilters(R, { ...all, q: '1000000000003' }, NOW)).toHaveLength(1);
+    expect(applyFilters(R, { ...all, q: '1000 0000 00003' }, NOW)).toHaveLength(1);
+    expect(applyFilters(R, { ...all, q: 'ma***a' }, NOW)).toHaveLength(1);
+    expect(applyFilters(R, { ...all, q: '4822' }, NOW)).toHaveLength(1);
+    expect(applyFilters(R, { ...all, q: '₱3,500' }, NOW)).toHaveLength(1);
+    expect(applyFilters(R, { ...all, q: '8000.00' }, NOW)).toHaveLength(1);
+    expect(applyFilters(R, { ...all, q: 'nothing' }, NOW)).toHaveLength(0);
+  });
+
+  it('combines filters', () => {
+    expect(applyFilters(R, f({ period: 'today', staff: 'Ana', amount: 'u1k' }), NOW)).toHaveLength(2);
+  });
+});
+
+describe('summarize', () => {
+  it('totals, fees and per-person counts', () => {
+    const s = summarize(applyFilters(R, f({ period: 'today' }), NOW));
+    expect(s.count).toBe(3);
+    expect(s.total).toBe(4250);
+    expect(s.fees).toBe(30);
+    expect(s.people).toEqual([
+      { name: 'Ana', n: 2, sum: 750 },
+      { name: 'Ben', n: 1, sum: 3500 },
+    ]);
+  });
+
+  it('handles an empty list', () => {
+    expect(summarize([])).toEqual({ count: 0, total: 0, fees: 0, people: [] });
+  });
+});
+
+describe('labels', () => {
+  it('names the period', () => {
+    expect(periodLabel(f({ period: 'today' }))).toBe('Today');
+    expect(periodLabel(f({ period: 'week' }))).toBe('Last 7 days');
+    expect(periodLabel(f({ period: 'custom', from: '2026-11-01', to: '2026-11-05' }))).toBe('Nov 1 – Nov 5');
+    expect(periodLabel(f({ period: 'custom' }))).toBe('Custom range');
+  });
+  it('lists staff once, sorted', () => {
+    expect(staffNames(R)).toEqual(['Ana', 'Ben', 'Tita Mel']);
+  });
+});
+
+const draft = (over: Partial<Draft>): Draft => ({
+  ref: '9047022665601', amount: '3500', fee: '40', feeTouched: false, name: '', number: '', txAt: NOW, refRead: true, ...over,
+});
+
+describe('reviewWarnings', () => {
+  const on = { warnOld: true, bigLimit: 10000 };
+  it('has none for a clean receipt', () => {
+    expect(reviewWarnings(draft({}), on, NOW)).toEqual([]);
+  });
+  it('old receipt', () => {
+    const w = reviewWarnings(draft({ txAt: at(8) }), on, NOW);
+    expect(w.map((x) => x.key)).toEqual(['old']);
+    expect(w[0].text).toBe('This receipt is from Nov 8.');
+  });
+  it('missing date', () => {
+    expect(reviewWarnings(draft({ txAt: null }), on, NOW).map((x) => x.key)).toEqual(['date']);
+  });
+  it('big amount only above the limit, and never when off', () => {
+    expect(reviewWarnings(draft({ amount: '10000' }), on, NOW)).toEqual([]);
+    expect(reviewWarnings(draft({ amount: '10000.01' }), on, NOW).map((x) => x.key)).toEqual(['big']);
+    expect(reviewWarnings(draft({ amount: '99999' }), { warnOld: true, bigLimit: 0 }, NOW)).toEqual([]);
+  });
+  it('reference not 13 digits', () => {
+    expect(reviewWarnings(draft({ ref: '9047 022 6656' }), on, NOW).map((x) => x.key)).toEqual(['ref']);
+    expect(reviewWarnings(draft({ ref: '9047 022 665601' }), on, NOW)).toEqual([]);
+  });
+  it('old-receipt warning can be turned off', () => {
+    expect(reviewWarnings(draft({ txAt: at(1) }), { warnOld: false, bigLimit: 10000 }, NOW)).toEqual([]);
+  });
+  it('reports several at once', () => {
+    const k = reviewWarnings(draft({ txAt: at(8), amount: '20000', ref: '123' }), on, NOW).map((x) => x.key);
+    expect(k).toEqual(['old', 'big', 'ref']);
+  });
+});

@@ -1,35 +1,28 @@
 import { useMemo, useState } from 'react';
-import { feeFor } from '../lib/fees';
-import { fromLocalInput, isToday, parseMoney, peso, shortDate, toLocalInput, dateTime } from '../lib/format';
+import { feeFor, tierLabel } from '../lib/fees';
+import { dateTime, fromLocalInput, parseMoney, peso, peso2, toLocalInput } from '../lib/format';
+import { reviewWarnings } from '../lib/warnings';
 import type { CashRecord, Draft } from '../lib/types';
 import { Icon } from './icons';
-import { TopBar, WarnBar } from './components';
+import { Sheet, TopBar, WarnBar } from './components';
 import { useApp } from './context';
 
 export function Review({ initial }: { initial: Draft }) {
   const { settings, fees, records, saveDraft, tab } = useApp();
   const [d, setD] = useState<Draft>(initial);
-  const [more, setMore] = useState(false);
   const [dup, setDup] = useState<CashRecord | null>(null);
+  const [sheet, setSheet] = useState<'fee' | 'customer' | null>(null);
+  const [viewing, setViewing] = useState(false);
 
   const refDigits = d.ref.replace(/\s+/g, '');
   const refOk = /^\d{13}$/.test(refDigits);
   const amount = parseMoney(d.amount);
-
-  const warns = useMemo(() => {
-    const w: string[] = [];
-    if (settings.warnOld) {
-      if (d.txAt == null) w.push('We could not read the date.');
-      else if (!isToday(d.txAt)) w.push(`This receipt is from ${shortDate(d.txAt)}.`);
-    }
-    if (settings.warnBig && amount > settings.bigLimit) w.push(`${peso(amount)} is a big amount.`);
-    if (!refOk) w.push('The reference number is not 13 digits.');
-    return w;
-  }, [settings.warnOld, settings.warnBig, settings.bigLimit, d.txAt, amount, refOk]);
-
-  const oldWarn = settings.warnOld && (d.txAt == null || !isToday(d.txAt));
-  const bigWarn = settings.warnBig && amount > settings.bigLimit;
+  const warns = useMemo(() => reviewWarnings(d, settings), [d, settings]);
+  const has = (k: string) => warns.some((w) => w.key === k);
   const canSave = refDigits.length > 0 && amount > 0;
+  const autoFee = feeFor(amount, fees);
+  const feeNum = parseMoney(d.fee);
+  const photo = d.photoUrl ?? d.thumb;
 
   function setAmount(v: string) {
     setD((p) => {
@@ -50,120 +43,177 @@ export function Review({ initial }: { initial: Draft }) {
 
   return (
     <>
-      <main className="screen review">
+      <main className="page review">
         <TopBar title="Check and save" />
 
-        {d.thumb && !more && (
-          <div className="thumb-row">
-            <img src={d.thumb} alt="Your receipt photo" />
-            <p>We read this from your photo. Please check it.</p>
+        <div className="photo-card">
+          {photo ? <img className="thumb" src={d.thumb ?? photo} alt="" /> : <div className="thumb" aria-hidden="true" />}
+          <div>
+            <b>{photo ? 'We read this from your photo' : 'Type the receipt details'}</b>
+            <p>{photo ? 'Check each box. Tap one to fix it.' : 'Copy them from the GCash receipt.'}</p>
+            {photo && (
+              <button className="link" onClick={() => setViewing(true)}>
+                View photo
+              </button>
+            )}
           </div>
-        )}
-        {!d.thumb && !more && (
-          <div className="thumb-row">
-            <p>Type the details from the GCash receipt.</p>
-          </div>
-        )}
+        </div>
 
         <div className="field">
           <label htmlFor="ref">Reference number</label>
-          <input id="ref" inputMode="numeric" autoComplete="off" className={refOk ? '' : 'warn'} value={d.ref} onChange={(e) => setD({ ...d, ref: e.target.value })} />
-          <div className={`hint${refOk ? '' : ' bad'}`}>{refOk ? '13 digits ✓' : `${refDigits.length} digits. It should be 13.`}</div>
+          <input id="ref" className={`box big ${refOk ? 'ok' : 'warn'}`} inputMode="numeric" autoComplete="off" value={d.ref} onChange={(e) => setD({ ...d, ref: e.target.value })} />
+          <div className={`note${refOk ? ' good' : ''}`}>{refOk ? '13 digits ✓' : `${refDigits.length} digits. It should be 13.`}</div>
+        </div>
+
+        <div className="two">
+          <div className="field">
+            <label htmlFor="amt">Amount</label>
+            <input id="amt" className={`box big${has('big') ? ' warn' : ''}`} inputMode="decimal" autoComplete="off" value={d.amount} onChange={(e) => setAmount(e.target.value)} />
+          </div>
+          <div className="field">
+            <span className="lab">Fee</span>
+            <button className="box big" aria-haspopup="dialog" aria-label={`Fee ${peso2(feeNum)}. Change`} onClick={() => setSheet('fee')}>
+              <span>{d.fee ? peso(feeNum) : '—'}</span>
+              <Icon name="down" size={18} />
+            </button>
+          </div>
+        </div>
+        {has('big') && <div className="note">Above your {peso(settings.bigLimit)} limit</div>}
+
+        <div className="field">
+          <label htmlFor="dt">Date and time</label>
+          <input id="dt" type="datetime-local" className={`box${has('old') || has('date') ? ' warn' : ''}`} value={toLocalInput(d.txAt)} onChange={(e) => setD({ ...d, txAt: fromLocalInput(e.target.value) })} />
+          {has('old') && <div className="note">This receipt is not from today</div>}
+          {has('date') && <div className="note">The date is missing. Please set it.</div>}
         </div>
 
         <div className="field">
-          <label htmlFor="amt">Amount (₱)</label>
-          <input id="amt" inputMode="decimal" autoComplete="off" className={bigWarn ? 'warn' : ''} value={d.amount} onChange={(e) => setAmount(e.target.value)} />
+          <span className="lab">Customer</span>
+          <button className="box" aria-haspopup="dialog" onClick={() => setSheet('customer')}>
+            <span>{d.name || d.number ? `${d.name || 'No name'} · ${d.number || 'No number'}` : 'Add name and number'}</span>
+            <Icon name="right" size={18} />
+          </button>
         </div>
-
-        <button className="more-btn" aria-expanded={more} onClick={() => setMore(!more)}>
-          {more ? 'Hide details' : 'More details'}
-          <small>
-            {!more && 'Name, number, date, fee'}
-            <Icon name={more ? 'up' : 'down'} size={20} />
-          </small>
-        </button>
-
-        {more && (
-          <>
-            <div className="two">
-              <div className="field small">
-                <label htmlFor="nm">Name</label>
-                <input id="nm" value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} />
-              </div>
-              <div className="field small">
-                <label htmlFor="no">Number</label>
-                <input id="no" inputMode="tel" value={d.number} onChange={(e) => setD({ ...d, number: e.target.value })} />
-              </div>
-            </div>
-            <div className="two">
-              <div className="field small" style={{ flex: 1.5 }}>
-                <label htmlFor="dt">Date and time</label>
-                <input id="dt" type="datetime-local" className={oldWarn ? 'warn' : ''} value={toLocalInput(d.txAt)} onChange={(e) => setD({ ...d, txAt: fromLocalInput(e.target.value) })} />
-              </div>
-              <div className="field small">
-                <label htmlFor="fee">Fee (₱)</label>
-                <input id="fee" inputMode="decimal" value={d.fee} onChange={(e) => setD({ ...d, fee: e.target.value, feeTouched: true })} />
-              </div>
-            </div>
-          </>
-        )}
       </main>
 
       <div className="savebar">
-        {warns.length > 0 && (
-          <WarnBar>
-            <b>Please check.</b> {warns.join(' ')}
-          </WarnBar>
-        )}
-        <button className="btn btn-primary" disabled={!canSave} onClick={onSave}>
-          Save · Cash given
-        </button>
-        <button className="btn btn-text" onClick={() => tab({ name: 'home' })}>
-          Cancel
-        </button>
+        <div className="in">
+          {warns.length > 0 && (
+            <WarnBar>
+              <b>Please check.</b> {warns.map((w) => w.text).join(' ')}
+            </WarnBar>
+          )}
+          <button className="btn btn-primary" disabled={!canSave} onClick={onSave}>
+            Save cash-out
+          </button>
+          <button className="btn btn-text" onClick={() => tab({ name: 'home' })}>
+            Discard
+          </button>
+        </div>
       </div>
 
+      {sheet === 'fee' && (
+        <Sheet title="Fee" onClose={() => setSheet(null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <button
+              className={`opt${!d.feeTouched ? ' on' : ''}`}
+              onClick={() => {
+                setD({ ...d, feeTouched: false, fee: autoFee != null ? autoFee.toFixed(2) : '' });
+                setSheet(null);
+              }}
+            >
+              <span>
+                Automatic <small>· {autoFee != null ? `${peso(autoFee)} for ${peso(amount)}` : 'type it below'}</small>
+              </span>
+              {!d.feeTouched && <Icon name="check" size={22} />}
+            </button>
+            {fees.map((t, i) => (
+              <button
+                key={i}
+                className={`opt${d.feeTouched && feeNum === t.fee ? ' on' : ''}`}
+                onClick={() => {
+                  setD({ ...d, fee: t.fee.toFixed(2), feeTouched: true });
+                  setSheet(null);
+                }}
+              >
+                <span>
+                  {peso(t.fee)} <small>· ₱{tierLabel(fees, i)}</small>
+                </span>
+                {d.feeTouched && feeNum === t.fee && <Icon name="check" size={22} />}
+              </button>
+            ))}
+          </div>
+          <div className="field">
+            <label htmlFor="cfee">Other fee (₱)</label>
+            <input
+              id="cfee"
+              className="box"
+              inputMode="decimal"
+              value={d.feeTouched ? d.fee : ''}
+              placeholder="Type a fee"
+              onChange={(e) => setD({ ...d, fee: e.target.value, feeTouched: true })}
+            />
+          </div>
+          <button className="btn btn-soft" style={{ marginTop: 14 }} onClick={() => setSheet(null)}>
+            Done
+          </button>
+        </Sheet>
+      )}
+
+      {sheet === 'customer' && (
+        <Sheet title="Customer" onClose={() => setSheet(null)}>
+          <div className="field" style={{ marginTop: 0 }}>
+            <label htmlFor="nm">Name</label>
+            <input id="nm" className="box" value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} />
+          </div>
+          <div className="field">
+            <label htmlFor="no">Number</label>
+            <input id="no" className="box" inputMode="tel" value={d.number} onChange={(e) => setD({ ...d, number: e.target.value })} />
+          </div>
+          <button className="btn btn-soft" style={{ marginTop: 16 }} onClick={() => setSheet(null)}>
+            Done
+          </button>
+        </Sheet>
+      )}
+
       {dup && (
-        <div className="sheet-back" role="dialog" aria-modal="true" aria-label="Already saved">
-          <div className="sheet">
-            <div className="grip" />
-            <div className="sheet-head">
-              <div className="badge">
-                <Icon name="warn" size={30} color="#5C4300" />
-              </div>
-              <div>
-                <b>Already saved</b>
-                <span>This may be paid out twice.</span>
-              </div>
+        <Sheet title="Already saved" onClose={() => setDup(null)}>
+          <div className="muted" style={{ marginTop: -6, marginBottom: 14, fontSize: 16 }}>
+            This may be paid out twice.
+          </div>
+          <div className="card" style={{ boxShadow: 'none', background: 'var(--bg)' }}>
+            <div className="muted small">Reference number</div>
+            <div className="bigref">{dup.ref}</div>
+            <div className="kv">
+              <span>Saved by</span>
+              <b>{dup.by}</b>
             </div>
-            <div className="card">
-              <div className="muted" style={{ fontSize: 15 }}>
-                Reference number
-              </div>
-              <div className="bigref">{dup.ref}</div>
-              <div className="kv">
-                <span>Saved by</span>
-                <b>{dup.by}</b>
-              </div>
-              <div className="kv">
-                <span>When</span>
-                <b>{dateTime(dup.savedAt)}</b>
-              </div>
-              <div className="kv">
-                <span>Amount</span>
-                <b>{peso(dup.amount)}</b>
-              </div>
+            <div className="kv">
+              <span>When</span>
+              <b>{dateTime(dup.savedAt)}</b>
             </div>
-            <div className="stack">
-              <button className="btn btn-primary" onClick={() => tab({ name: 'home' })}>
-                Don't save
-              </button>
-              <button className="btn btn-danger" onClick={() => saveDraft({ ...d, ref: refDigits }, true)}>
-                This is different. Save anyway
-              </button>
+            <div className="kv">
+              <span>Amount</span>
+              <b>{peso2(dup.amount)}</b>
             </div>
           </div>
+          <div className="stack" style={{ marginTop: 16 }}>
+            <button className="btn btn-primary" onClick={() => tab({ name: 'home' })}>
+              Don't save
+            </button>
+            <button className="btn btn-danger" onClick={() => saveDraft({ ...d, ref: refDigits }, true)}>
+              This is different. Save anyway
+            </button>
+          </div>
+        </Sheet>
+      )}
+
+      {viewing && photo && (
+        <div className="viewer" role="dialog" aria-modal="true" aria-label="Receipt photo" onClick={() => setViewing(false)}>
+          <img src={photo} alt="Receipt" />
+          <button className="round" aria-label="Close photo" onClick={() => setViewing(false)}>
+            <Icon name="close" size={22} />
+          </button>
         </div>
       )}
     </>

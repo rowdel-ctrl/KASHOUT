@@ -5,7 +5,7 @@ import { isNative } from './platform';
 
 /** Reads all text in the photo with Google ML Kit (on the phone, free, works offline). */
 export async function readText(photo: PickedPhoto): Promise<string> {
-  if (!isNative) return ''; // no text reading in the browser demo
+  if (!isNative) return (globalThis as { __ocrText?: string }).__ocrText ?? ''; // browser demo and tests only
   if (photo.uri) {
     try {
       const r = await TextRecognition.processImage({ path: photo.uri });

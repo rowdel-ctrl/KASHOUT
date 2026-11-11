@@ -31,13 +31,17 @@ export interface FeeTier {
 }
 
 export type TextSize = 'normal' | 'large' | 'xl';
+export type Theme = 'system' | 'light' | 'dark';
 
 export interface Settings {
   textSize: TextSize;
+  theme: Theme;
   warnOld: boolean;
-  warnBig: boolean;
+  /** Amount that triggers the "big amount" warning. 0 turns the warning off. */
   bigLimit: number;
   savePhoto: boolean;
+  /** The 3-card tour has been seen (or skipped). */
+  tourDone: boolean;
   /** Daily reminder at 8 PM to open Closing. */
   closingReminder: boolean;
   /** Secret ntfy.sh topic. Stored on this phone only. */
@@ -46,10 +50,11 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   textSize: 'large',
+  theme: 'system',
   warnOld: true,
-  warnBig: true,
-  bigLimit: 3000,
+  bigLimit: 10000,
   savePhoto: true,
+  tourDone: false,
   closingReminder: false,
   ntfyTopic: '',
 };
@@ -63,17 +68,34 @@ export interface Draft {
   number: string;
   txAt: number | null;
   thumb?: string;
+  /** Full-size picture for "View photo" (this phone only, not saved). */
+  photoUrl?: string;
   /** False when the app could not find a valid 13-digit reference. */
   refRead: boolean;
 }
+
+export type Period = 'today' | 'yesterday' | 'week' | 'all' | 'custom';
+export type AmountBand = 'any' | 'u1k' | 'b1k5k' | 'o5k';
+
+export interface Filters {
+  period: Period;
+  /** YYYY-MM-DD, used when period is "custom". */
+  from: string;
+  to: string;
+  amount: AmountBand;
+  /** Staff first name, or "all". */
+  staff: string;
+  /** Search text (reference, name, number or amount). */
+  q: string;
+}
+
+export const DEFAULT_FILTERS: Filters = { period: 'today', from: '', to: '', amount: 'any', staff: 'all', q: '' };
 
 export type Route =
   | { name: 'home' }
   | { name: 'scan' }
   | { name: 'review'; draft: Draft }
-  | { name: 'records'; filter?: 'today' | 'yesterday' | 'all' }
+  | { name: 'records'; period?: Period }
   | { name: 'detail'; id: string }
-  | { name: 'more' }
-  | { name: 'closing' }
   | { name: 'settings' }
   | { name: 'fees' };
