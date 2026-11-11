@@ -4,6 +4,9 @@ name: Build Android APK
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write # lets the build publish a Release
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -84,3 +87,14 @@ jobs:
           name: cashout-log-apk
           path: out/cashout-log.apk
           if-no-files-found: error
+
+      - name: Publish a release with the APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NOTE="Install on Android: download cashout-log.apk and open it. Built from commit ${GITHUB_SHA::7}."
+          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then NOTE="DEMO build (sample data only). $NOTE"; fi
+          gh release create "v${VERSION_NAME}" out/cashout-log.apk \
+            --target "$GITHUB_SHA" \
+            --title "Kashawt ${VERSION_NAME}" \
+            --notes "$NOTE"
