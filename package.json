@@ -1,0 +1,57 @@
+{
+  "name": "cashout-log",
+  "version": "1.0.0",
+  "description": "GCash cash-out log",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "sync": "npm run build && cap sync android",
+    "test:rules": "npx -y firebase-tools@15 emulators:exec --only firestore --project rules-test 'npx vitest run --config vitest.rules.config.ts'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rowdel-ctrl/KASHOUT.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rowdel-ctrl/KASHOUT/issues"
+  },
+  "homepage": "https://github.com/rowdel-ctrl/KASHOUT#readme",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@capacitor-firebase/authentication": "^8.6.0",
+    "@capacitor-mlkit/text-recognition": "^8.2.2",
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/camera": "^8.2.6",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.3",
+    "@fontsource/nunito": "^5.3.0",
+    "firebase": "^12.19.0",
+    "jspdf": "^4.2.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "postcss": "^8.5.32",
+    "postcss-pxtorem": "^6.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

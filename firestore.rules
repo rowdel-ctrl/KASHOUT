@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Only signed-in, email-verified Google accounts that are on the allowlist get in.
+    // The allowlist lives in the database (document config/allowlist, field "emails"),
+    // not in this file, so no email address is ever committed to the repository.
+    function allowed() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/config/allowlist)
+        && request.auth.token.email.lower() in get(/databases/$(database)/documents/config/allowlist).data.emails;
+    }
+
+    function validRecord(d) {
+      return d.keys().hasOnly(['ref', 'amount', 'fee', 'name', 'number', 'txAt', 'savedAt', 'by', 'byUid', 'thumb'])
+        && d.keys().hasAll(['ref', 'amount', 'fee', 'name', 'number', 'txAt', 'savedAt', 'by', 'byUid'])
+        && d.ref is string && d.ref.size() <= 40
+        && d.amount is number && d.amount > 0 && d.amount <= 1000000
+        && d.fee is number && d.fee >= 0 && d.fee <= 100000
+        && d.name is string && d.name.size() <= 80
+        && d.number is string && d.number.size() <= 40
+        && (d.txAt == null || d.txAt is number)
+        && d.savedAt is number
+        && d.by is string && d.by.size() <= 60
+        && d.byUid == request.auth.uid
+        && (!('thumb' in d) || (d.thumb is string && d.thumb.size() <= 60000));
+    }
+
+    // Nobody can read or change the allowlist from the app. Edit it in the Firebase console.
+    match /config/{doc} {
+      allow read, write: if false;
+    }
+
+    match /records/{id} {
+      allow read: if allowed();
+      // The first save of a reference uses the reference as the document id.
+      // A second create with the same id is an update, which is denied below,
+      // so two phones cannot both save the same reference.
+      allow create: if allowed() && validRecord(request.resource.data);
+      allow update: if false;
+      allow delete: if allowed();
+    }
+
+    // Shared app settings (the fee table).
+    match /shared/{doc} {
+      allow read: if allowed();
+      allow create, update: if allowed()
+        && doc == 'settings'
+        && request.resource.data.keys().hasOnly(['feeTable'])
+        && request.resource.data.feeTable is list
+        && request.resource.data.feeTable.size() > 0
+        && request.resource.data.feeTable.size() <= 60;
+    }
+  }
+}
