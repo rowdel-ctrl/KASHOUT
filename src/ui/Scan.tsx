@@ -94,7 +94,7 @@ export function Scan() {
           </span>
           Gallery
         </button>
-        <button className="shutter" aria-label="Take photo" onClick={shoot} />
+        <button className="shutter" aria-label="Take photo" disabled={cam.state === 'starting'} onClick={shoot} />
         <button className="side" onClick={() => replace({ name: 'review', draft: emptyDraft() })}>
           <span>
             <Icon name="text" size={26} color="#fff" />
