@@ -9,7 +9,7 @@ export async function sendNtfy(topic: string, message: string): Promise<boolean>
     const res = await fetch(`https://ntfy.sh/${encodeURIComponent(t)}`, {
       method: 'POST',
       body: message,
-      headers: { Title: 'Cash-out Log' },
+      headers: { Title: 'Kashawt' },
     });
     return res.ok;
   } catch {
@@ -32,7 +32,7 @@ export async function setClosingReminder(on: boolean): Promise<boolean> {
         {
           id: REMINDER_ID,
           title: 'Time to close',
-          body: 'Open Cash-out Log and check today’s totals.',
+          body: 'Open Kashawt and check today’s totals.',
           schedule: { on: { hour: 20, minute: 0 } },
         },
       ],

@@ -15,7 +15,7 @@ export function Home() {
         <div className="home-head">
           <div>
             <div className="muted">Hi, {user.name}</div>
-            <h1 className="h1">Cash-out Log</h1>
+            <h1 className="h1">Kashawt</h1>
           </div>
           <div className={`pill${syncLabel.wait ? ' wait' : ''}`}>
             <i />

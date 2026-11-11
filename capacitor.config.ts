@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'ph.store.cashoutlog',
-  appName: 'Cash-out Log',
+  appName: 'Kashawt',
   webDir: 'dist',
   plugins: {
     FirebaseAuthentication: {

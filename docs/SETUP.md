@@ -11,7 +11,7 @@ You will end up with: one APK file you install on each phone.
 
 ### 1.1 Create the project
 1. Go to <https://console.firebase.google.com> and click **Create a project**.
-2. Name it, for example `cashout-log`. Turn **Google Analytics off**. Click **Create**.
+2. Name it `kashawt`. Turn **Google Analytics off**. Click **Create**.
 3. Make sure you stay on the **Spark (free)** plan. Never click Upgrade.
 
 ### 1.2 Turn on Google sign-in
@@ -123,7 +123,7 @@ In your GitHub repository: **Settings → Secrets and variables → Actions → 
 **Alerts to other phones (optional):**
 1. Pick a long secret name, for example `cashout-9f3k2x7q` (do not use the store name).
 2. On each phone, install the free **ntfy** app and subscribe to that name.
-3. In Cash-out Log: **More → Settings → Alert code**, type the same name.
+3. In Kashawt: **More → Settings → Alert code**, type the same name.
 4. The message has only the person's name and the amount. No reference number and no customer data.
 
 ---

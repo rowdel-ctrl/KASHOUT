@@ -1,4 +1,4 @@
-# Cash-out Log
+# Kashawt
 
 Android app for a sari-sari store. Staff record every GCash cash-out by its **13-digit reference number**, so the GCash inbox can be cleared without anything being paid twice or lost.
 

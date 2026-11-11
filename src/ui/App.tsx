@@ -77,7 +77,7 @@ function Login() {
       <div className="logo">
         <Icon name="camera" size={56} color="#fff" stroke={1.8} />
       </div>
-      <h1>Cash-out Log</h1>
+      <h1>Kashawt</h1>
       <p>Record every GCash cash-out, so nothing is paid twice or lost.</p>
       <button
         className="btn btn-primary"
