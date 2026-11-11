@@ -356,3 +356,5 @@ input.box:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-
 
 .hide-narrow { display: none; }
 @media (min-width: 768px) { .hide-narrow { display: block; } }
+
+.box span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

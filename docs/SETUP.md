@@ -123,7 +123,7 @@ In your GitHub repository: **Settings → Secrets and variables → Actions → 
 **Alerts to other phones (optional):**
 1. Pick a long secret name, for example `cashout-9f3k2x7q` (do not use the store name).
 2. On each phone, install the free **ntfy** app and subscribe to that name.
-3. In Kashawt: **More → Settings → Alert code**, type the same name.
+3. In Kashawt: **Settings → Alert code**, type the same name.
 4. The message has only the person's name and the amount. No reference number and no customer data.
 
 ---
@@ -137,6 +137,9 @@ Do these once, with fake or test receipts.
 3. **Duplicate.** Save the same reference twice. The second time you get **Already saved** with who and when.
 4. **Not on the list.** Sign in with a Google account that is not on the allowlist. You should see **This account is not allowed** and no records.
 5. **Undo.** Save, tap **Undo** within 5 seconds. The record disappears and the form comes back.
+6. **Closing and export.** Open **Records**. The Closing card shows the total for the dates you chose. Tap **Send** for the summary alert, and **Export** for Excel or PDF.
+7. **Dark mode and text size.** Open **Settings** and try **Theme** and **Text size**.
+8. **Delete.** Open a record you saved and tap **Delete this record** twice. You cannot delete a record someone else saved.
 
 You can also test the security rules on a computer: `npm run test:rules` (needs Java).
 
