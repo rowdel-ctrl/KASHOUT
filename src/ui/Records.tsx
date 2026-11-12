@@ -306,6 +306,7 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
   const { user, toast } = useApp();
   const [sure, setSure] = useState(false);
   const [photo, setPhoto] = useState<string | null>(r.thumb ?? null);
+  const [photoDone, setPhotoDone] = useState(false);
   const [zoom, setZoom] = useState(false);
   const mine = r.byUid === user.uid;
 
@@ -313,8 +314,13 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
   useEffect(() => {
     let on = true;
     setPhoto(r.thumb ?? null);
+    setPhotoDone(false);
     setSure(false);
-    void api.getPhoto(r.id).then((p) => on && p && setPhoto(p));
+    void api.getPhoto(r.id).then((p) => {
+      if (!on) return;
+      if (p) setPhoto(p);
+      setPhotoDone(true);
+    });
     return () => {
       on = false;
     };
@@ -353,6 +359,7 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
           </b>
         </div>
       </div>
+      {!photo && photoDone && <div className="muted small" style={{ textAlign: 'center' }}>No photo was saved for this record.</div>}
       {photo && (
         <>
           <button className="photobtn" aria-label="Enlarge the receipt photo" onClick={() => setZoom(true)}>

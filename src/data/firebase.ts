@@ -125,7 +125,13 @@ export function createFirebaseApi(cfg: FirebaseSettings): DataApi {
     savePhoto(id, dataUrl) {
       const uid = auth.currentUser?.uid;
       if (!uid) return;
-      setDoc(doc(db, 'photos', id), { data: dataUrl, byUid: uid, savedAt: Date.now() }).catch(() => {});
+      setDoc(doc(db, 'photos', id), { data: dataUrl, byUid: uid, savedAt: Date.now() }).catch((e: { code?: string }) => {
+        const msg =
+          e.code === 'permission-denied'
+            ? 'The photo was not saved. The owner needs to publish the new rules in Firebase.'
+            : 'The photo was not saved. Please try again.';
+        errCbs.forEach((cb) => cb(msg, ''));
+      });
     },
 
     async getPhoto(id) {
