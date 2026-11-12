@@ -582,3 +582,9 @@ body:has(.scan)::before, body:has(.viewer)::before { background: #14110D; }
 .updatecard > span { font-size: 15px; font-weight: 700; }
 .updatecard small { font-size: 13px; font-weight: 700; opacity: .85; }
 .updatecard .btn { height: 48px; font-size: 16px; }
+
+/* Hold to confirm: the button fills up while it is held, and only then does it act */
+.hold { position: relative; overflow: hidden; user-select: none; -webkit-user-select: none; touch-action: manipulation; -webkit-touch-callout: none; }
+.hold i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--red); opacity: .22; }
+.hold.on i { width: 100%; transition: width var(--ms, 1s) linear; }
+.hold span { position: relative; }

@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { formatRef, peso2, timeOf, waitText } from '../lib/format';
 import { LATE_MS, highlight, highlightRef, isPending, matchRecord, whenOf } from '../lib/records';
 import type { CashRecord, Route } from '../lib/types';
@@ -188,5 +188,47 @@ export function WarnBar({ children }: { children: ReactNode }) {
       <Icon name="warn" size={22} />
       <div>{children}</div>
     </div>
+  );
+}
+
+/**
+ * A button that only works when it is held down. A quick tap does nothing.
+ * Used for things that cannot be undone, so one slip of the finger cannot do them.
+ */
+export function HoldButton({ label, holding, onDone, ms = 1000 }: { label: string; holding: string; onDone: () => void; ms?: number }) {
+  const [on, setOn] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  const start = () => {
+    if (timer.current) return;
+    setOn(true);
+    timer.current = window.setTimeout(() => {
+      timer.current = undefined;
+      setOn(false);
+      onDone();
+    }, ms);
+  };
+  const stop = () => {
+    window.clearTimeout(timer.current);
+    timer.current = undefined;
+    setOn(false);
+  };
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  return (
+    <button
+      type="button"
+      className={`btn btn-danger hold${on ? ' on' : ''}`}
+      style={{ ['--ms' as string]: `${ms}ms` }}
+      onPointerDown={start}
+      onPointerUp={stop}
+      onPointerLeave={stop}
+      onPointerCancel={stop}
+      onContextMenu={(e) => e.preventDefault()}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && !e.repeat && start()}
+      onKeyUp={(e) => (e.key === 'Enter' || e.key === ' ') && stop()}
+      onBlur={stop}
+    >
+      <i aria-hidden="true" />
+      <span>{on ? holding : label}</span>
+    </button>
   );
 }

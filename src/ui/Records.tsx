@@ -7,7 +7,7 @@ import { DEFAULT_FILTERS, type AmountBand, type Filters, type Period, type Statu
 import { sendNtfy } from '../native/alerts';
 import { Icon } from './icons';
 import { PhotoViewer } from './PhotoViewer';
-import { NavBar, OptionSheet, RecRow, Sheet, TopBar } from './components';
+import { HoldButton, NavBar, OptionSheet, RecRow, Sheet, TopBar } from './components';
 import { useApp } from './context';
 import { useWide } from './useWide';
 import type { CashRecord } from '../lib/types';
@@ -364,7 +364,7 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
   const tl = settings.lang === 'tl';
   const pending = isPending(r);
   const waited = (r.paidAt ?? Date.now()) - r.savedAt;
-  const [sure, setSure] = useState(false);
+  const [confirm, setConfirm] = useState<'edit' | 'delete' | null>(null);
   const [photo, setPhoto] = useState<string | null>(r.thumb ?? null);
   const [photoDone, setPhotoDone] = useState(false);
   const [zoom, setZoom] = useState(false);
@@ -375,7 +375,7 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
     let on = true;
     setPhoto(r.thumb ?? null);
     setPhotoDone(false);
-    setSure(false);
+    setConfirm(null);
     void api.getPhoto(r.id).then((p) => {
       if (!on) return;
       if (p) setPhoto(p);
@@ -460,27 +460,70 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
         </button>
       )}
       {mine && (
-        <button className="btn btn-ghost" onClick={() => go({ name: 'edit', id: r.id })}>
+        <button className="btn btn-ghost" onClick={() => setConfirm('edit')}>
           {t('Edit')}
         </button>
       )}
       {mine ? (
-        <button
-          className="btn btn-danger"
-          onClick={() => {
-            if (!sure) return setSure(true);
-            api.deleteRecord(r.id);
-            toast(t('Record deleted'));
-            setSure(false);
-            onDeleted?.();
-          }}
-        >
-          {sure ? t('Tap again to delete') : t('Delete')}
+        <button className="btn btn-danger" onClick={() => setConfirm('delete')}>
+          {t('Delete')}
         </button>
       ) : (
         <div className="muted small" style={{ textAlign: 'center' }}>
           {t('Only {name} can delete this record.', { name: r.by })}
         </div>
+      )}
+
+      {confirm === 'edit' && (
+        <Sheet title={t('Edit this record?')} onClose={() => setConfirm(null)}>
+          <div className="muted" style={{ marginTop: -6, marginBottom: 14, fontSize: 16, lineHeight: 1.4 }}>
+            {t('Every change is saved in History, with your name and the time.')}
+          </div>
+          <div className="stack">
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setConfirm(null);
+                go({ name: 'edit', id: r.id });
+              }}
+            >
+              {t('Edit')}
+            </button>
+            <button className="btn btn-text" onClick={() => setConfirm(null)}>
+              {t('Cancel')}
+            </button>
+          </div>
+        </Sheet>
+      )}
+
+      {confirm === 'delete' && (
+        <Sheet title={t('Delete this record?')} onClose={() => setConfirm(null)}>
+          <div className="card" style={{ boxShadow: 'none', background: 'var(--bg)', marginBottom: 12 }}>
+            <div className="bigref" style={{ fontSize: 22 }}>
+              {formatRef(r.ref)}
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>{peso2(r.amount)}</div>
+            <div className="muted small">{[r.name, dateTime(r.savedAt)].filter(Boolean).join(' · ')}</div>
+          </div>
+          <div className="muted" style={{ marginBottom: 14, fontSize: 16, lineHeight: 1.4 }}>
+            {t('This cannot be undone. Everyone will stop seeing it.')}
+          </div>
+          <div className="stack">
+            <HoldButton
+              label={t('Hold to delete')}
+              holding={t('Keep holding…')}
+              onDone={() => {
+                api.deleteRecord(r.id);
+                setConfirm(null);
+                toast(t('Record deleted'));
+                onDeleted?.();
+              }}
+            />
+            <button className="btn btn-text" onClick={() => setConfirm(null)}>
+              {t('Cancel')}
+            </button>
+          </div>
+        </Sheet>
       )}
     </>
   );
