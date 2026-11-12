@@ -3,7 +3,9 @@ import { withoutOwn } from '../lib/identity';
 import { parseReceipt, type ParsedReceipt } from '../lib/parse';
 import type { Draft, FeeTier, Settings } from '../lib/types';
 import { readText } from '../native/ocr';
-import { makePhoto, makeThumb, type PickedPhoto } from '../native/photo';
+import { makePhoto, makeTextPhoto, makeThumb, type PickedPhoto } from '../native/photo';
+import { translate } from '../lib/i18n';
+import { dateTime } from '../lib/format';
 
 export interface DraftContext {
   fees: FeeTier[];
@@ -46,10 +48,16 @@ export async function draftFromPhoto(photo: PickedPhoto, ctx: DraftContext, know
   return d;
 }
 
-/** A receipt shared as text. There is no photo to keep. */
-export function draftFromText(text: string, ctx: DraftContext, now: number = Date.now()): Draft {
-  const d = { ...fromParsed(parseReceipt(text, now), ctx), rawText: text };
+/**
+ * A receipt shared as text. GCash sends only the message, so a picture of that message is made
+ * and kept with the record, the same as a photo would be.
+ */
+export async function draftFromText(text: string, ctx: DraftContext, now: number = Date.now()): Promise<Draft> {
+  const d: Draft = { ...fromParsed(parseReceipt(text, now), ctx), rawText: text };
   // GCash's Share button sends only the message, and the date is not part of it. Use today, and say so.
-  if (d.txAt == null) return { ...d, txAt: now, dateGuess: true };
-  return d;
+  const out = d.txAt == null ? { ...d, txAt: now, dateGuess: true } : d;
+  const lang = ctx.settings.lang;
+  const img = makeTextPhoto(text.trim(), translate(lang, 'GCash message'), translate(lang, 'Shared {when} · text copy, not a screenshot', { when: dateTime(now) }));
+  if (!img) return out;
+  return { ...out, photo: img, photoUrl: img, thumb: await makeThumb(img) };
 }

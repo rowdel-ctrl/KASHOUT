@@ -122,6 +122,8 @@ export const TL: Record<string, string> = {
   'This receipt is not from today': 'Hindi ito galing ngayong araw',
   'The date is missing. Please set it.': 'Walang date. Paki-set.',
   'No date was found, so today was used. Change it if the receipt is older.': 'Walang nakitang date, kaya ngayon ang ginamit. Palitan kung mas matanda ang resibo.',
+  'GCash message': 'GCash message',
+  'Shared {when} · text copy, not a screenshot': 'Na-share noong {when} · text copy, hindi screenshot',
   'Customer': 'Customer',
   'No name': 'Walang name',
   'No number': 'Walang number',

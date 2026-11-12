@@ -18,7 +18,13 @@ const Shared = registerPlugin<SharedReceiptPlugin>('SharedReceipt');
 
 /** Calls `cb` when a receipt is shared to the app, including one that opened the app. */
 export function listenShared(cb: (item: SharedItem) => void): () => void {
-  if (!isNative) return () => {};
+  if (!isNative) {
+    // Browser tests only: lets a test pretend something was shared.
+    (globalThis as { __emitShared?: (i: SharedItem) => void }).__emitShared = cb;
+    return () => {
+      delete (globalThis as { __emitShared?: unknown }).__emitShared;
+    };
+  }
   let alive = true;
   let handle: PluginListenerHandle | undefined;
   const check = async () => {
