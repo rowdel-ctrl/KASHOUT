@@ -592,12 +592,11 @@ body:has(.scan)::before, body:has(.viewer)::before { background: #14110D; }
 /* Important buttons: room between them, and the two ways to save say what they mean */
 .stack { gap: 14px; }
 .savebar .in { gap: 14px; }
-.btn.two-line { flex-direction: column; gap: 2px; height: 66px; }
-.btn.two-line b { font-size: 18px; font-weight: 800; }
-.btn.two-line small { font-size: 13px; font-weight: 700; opacity: .85; }
-.btn-pending.two-line { height: 66px; }
-.saveas { text-align: center; font-size: 14px; font-weight: 800; color: var(--muted); }
-.saveas.need { color: var(--warn-text); background: var(--warn-bg); border-radius: 14px; padding: 10px 12px; font-size: 15px; line-height: 1.35; }
+.savepair { display: flex; gap: 12px; align-items: stretch; }
+.savepair .btn { height: 78px; padding: 0 10px; line-height: 1.15; }
+.savepair .btn-pending { flex: 0 0 118px; font-size: 16px; }
+.savepair .btn-primary { flex: 1; min-width: 0; font-size: 20px; }
+.saveas.need { color: var(--warn-text); background: var(--warn-bg); border-radius: 14px; padding: 10px 12px; font-size: 15px; font-weight: 800; text-align: center; line-height: 1.35; }
 .sepgap { height: 6px; }
 .btn-danger { border-width: 2px; }
-@media (max-height: 520px) { .savebar .in { gap: 8px; } .btn.two-line { height: 52px; flex-direction: row; gap: 10px; } .btn.two-line small { display: none; } .saveas { display: none; } }
+@media (max-height: 520px) { .savebar .in { gap: 8px; } .savepair .btn { height: 52px; } }

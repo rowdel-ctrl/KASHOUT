@@ -197,17 +197,19 @@ export function Review({ initial }: { initial: Draft }) {
             </>
           ) : (
             <>
-              <div className={`saveas${canSave ? '' : ' need'}`} role={canSave ? undefined : 'status'}>
-                {canSave ? t('Save as') : t('Fill in the reference number and amount first.')}
+              {!canSave && (
+                <div className="saveas need" role="status">
+                  {t('Fill in the reference number and amount first.')}
+                </div>
+              )}
+              <div className="savepair">
+                <button className="btn btn-pending" disabled={!canSave} onClick={() => onSave('pending')}>
+                  {t('Save · Pending')}
+                </button>
+                <button className="btn btn-primary" disabled={!canSave} onClick={() => onSave('paid')}>
+                  {t('Save · Paid')}
+                </button>
               </div>
-              <button className="btn btn-primary two-line" disabled={!canSave} onClick={() => onSave('paid')}>
-                <b>{t('Save · Paid')}</b>
-                <small>{t('Cash given')}</small>
-              </button>
-              <button className="btn btn-pending two-line" disabled={!canSave} onClick={() => onSave('pending')}>
-                <b>{t('Save · Pending')}</b>
-                <small>{t('Cash not given yet')}</small>
-              </button>
             </>
           )}
         </div>
