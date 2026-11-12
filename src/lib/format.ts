@@ -57,3 +57,12 @@ export function formatRef(ref: string): string {
   const d = ref.replace(/\s+/g, '');
   return /^\d{13}$/.test(d) ? `${d.slice(0, 4)} ${d.slice(4, 8)} ${d.slice(8)}` : ref;
 }
+
+/** How long something has been waiting: "25 min", "3 h", "2 d". */
+export function waitText(ms: number): string {
+  const min = Math.max(0, Math.floor(ms / 60_000));
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} h`;
+  return `${Math.floor(h / 24)} d`;
+}

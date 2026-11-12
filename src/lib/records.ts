@@ -3,6 +3,15 @@ import type { AmountBand, CashRecord, Filters, Period } from './types';
 
 const DAY = 86_400_000;
 
+/** Older records have no status and are paid. */
+export const isPending = (r: CashRecord): boolean => r.status === 'pending';
+
+/** Two hours of waiting turns the reminder stronger. */
+export const LATE_MS = 2 * 3_600_000;
+
+/** When the cash went out: the time it was marked paid, or when it was saved. Pending records use the save time. */
+export const whenOf = (r: CashRecord): number => (isPending(r) ? r.savedAt : (r.paidAt ?? r.savedAt));
+
 function startOfDay(ms: number): number {
   const d = new Date(ms);
   d.setHours(0, 0, 0, 0);
@@ -70,12 +79,15 @@ function score(r: CashRecord, q: string, field: MatchField): number {
  */
 export function applyFilters(records: CashRecord[], f: Filters, now: number = Date.now()): CashRecord[] {
   const term = f.q.trim();
-  const byAmountStaff = (r: CashRecord) => inBand(r.amount, f.amount) && (f.staff === 'all' || r.by === f.staff);
+  const pick = (r: CashRecord) =>
+    inBand(r.amount, f.amount) &&
+    (f.staff === 'all' || r.by === f.staff) &&
+    (f.status === 'all' || (f.status === 'pending') === isPending(r));
 
   if (term) {
     const hits: { r: CashRecord; s: number }[] = [];
     for (const r of records) {
-      if (!byAmountStaff(r)) continue;
+      if (!pick(r)) continue;
       const field = matchRecord(r, term);
       if (field) hits.push({ r, s: score(r, term, field) });
     }
@@ -83,8 +95,14 @@ export function applyFilters(records: CashRecord[], f: Filters, now: number = Da
     return hits.map((h) => h.r);
   }
 
+  // The Pending view shows every pending record, whatever day it was saved.
+  if (f.status === 'pending') return records.filter(pick);
+
   const { from, to } = periodRange(f, now);
-  return records.filter((r) => (from == null || r.savedAt >= from) && (to == null || r.savedAt < to) && byAmountStaff(r));
+  return records.filter((r) => {
+    const t = whenOf(r);
+    return (from == null || t >= from) && (to == null || t < to) && pick(r);
+  });
 }
 
 /** The grouped reference with the typed digits marked, even when they run across a space. */
@@ -127,17 +145,34 @@ export function highlight(text: string, q: string): { t: string; hit: boolean }[
 }
 
 export interface Summary {
+  /** Paid cash-outs only. */
   count: number;
   total: number;
   fees: number;
   people: { name: string; n: number; sum: number }[];
+  pendingCount: number;
+  pendingTotal: number;
+  /** Save time of the oldest pending record, or null. */
+  oldestPending: number | null;
 }
 
+/** Totals count only paid records. Pending ones are listed apart. */
 export function summarize(list: CashRecord[]): Summary {
   const m = new Map<string, { n: number; sum: number }>();
   let total = 0;
   let fees = 0;
+  let count = 0;
+  let pendingCount = 0;
+  let pendingTotal = 0;
+  let oldestPending: number | null = null;
   for (const r of list) {
+    if (isPending(r)) {
+      pendingCount += 1;
+      pendingTotal += r.amount;
+      oldestPending = oldestPending == null ? r.savedAt : Math.min(oldestPending, r.savedAt);
+      continue;
+    }
+    count += 1;
     total += r.amount;
     fees += r.fee;
     const p = m.get(r.by) ?? { n: 0, sum: 0 };
@@ -146,10 +181,11 @@ export function summarize(list: CashRecord[]): Summary {
     m.set(r.by, p);
   }
   const people = [...m.entries()].map(([name, p]) => ({ name, ...p })).sort((a, b) => b.n - a.n || b.sum - a.sum);
-  return { count: list.length, total, fees, people };
+  return { count, total, fees, people, pendingCount, pendingTotal, oldestPending };
 }
 
 export function periodLabel(f: Filters, now: number = Date.now()): string {
+  if (f.status === 'pending') return 'Pending';
   const short = (ms: number) => new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   switch (f.period) {
     case 'today': return 'Today';

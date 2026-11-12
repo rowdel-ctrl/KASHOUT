@@ -1,9 +1,9 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { api } from '../data';
 import { shareCsv, sharePdf } from '../lib/export';
-import { dateTime, formatRef, peso, peso2 } from '../lib/format';
-import { activeFilterCount, applyFilters, periodLabel, staffNames, summarize } from '../lib/records';
-import { DEFAULT_FILTERS, type AmountBand, type Filters, type Period } from '../lib/types';
+import { dateTime, formatRef, peso, peso2, waitText } from '../lib/format';
+import { LATE_MS, activeFilterCount, applyFilters, isPending, periodLabel, staffNames, summarize, whenOf } from '../lib/records';
+import { DEFAULT_FILTERS, type AmountBand, type Filters, type Period, type StatusFilter } from '../lib/types';
 import { sendNtfy } from '../native/alerts';
 import { Icon } from './icons';
 import { PhotoViewer } from './PhotoViewer';
@@ -27,10 +27,10 @@ const BANDS: { value: AmountBand; label: string }[] = [
   { value: 'o5k', label: 'Over ₱5,000' },
 ];
 
-export function Records({ initialPeriod }: { initialPeriod?: Period }) {
+export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Period; initialStatus?: StatusFilter }) {
   const { records, go, alertTopic, toast } = useApp();
   const wide = useWide();
-  const [f, setF] = useState<Filters>({ ...DEFAULT_FILTERS, period: initialPeriod ?? 'today' });
+  const [f, setF] = useState<Filters>({ ...DEFAULT_FILTERS, period: initialPeriod ?? 'today', status: initialStatus ?? 'all' });
   const [sheet, setSheet] = useState<'period' | 'filters' | 'export' | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [showWho, setShowWho] = useState(false);
@@ -38,7 +38,8 @@ export function Records({ initialPeriod }: { initialPeriod?: Period }) {
 
   const q = useDeferredValue(f.q.trim());
   const searching = q.length > 0;
-  const shown = useMemo(() => applyFilters(records, { ...f, q }), [records, f.period, f.from, f.to, f.amount, f.staff, q]);
+  const shown = useMemo(() => applyFilters(records, { ...f, q }), [records, f.period, f.from, f.to, f.amount, f.staff, f.status, q]);
+  const pendingAll = useMemo(() => records.filter(isPending), [records]);
   const sum = useMemo(() => summarize(shown), [shown]);
   const label = searching ? 'Search results' : periodLabel(f);
   const maxN = Math.max(1, ...sum.people.map((p) => p.n));
@@ -63,7 +64,7 @@ export function Records({ initialPeriod }: { initialPeriod?: Period }) {
   const list = (
     <>
       <div className="count">
-        {shown.length} {shown.length === 1 ? 'result' : 'records'}
+        {shown.length} {shown.length === 1 ? (searching ? 'result' : 'record') : 'records'}
         {searching && shown.length > 0 && shown.length !== 1 ? ' · best matches first' : ''}
       </div>
       <div className="list">
@@ -129,8 +130,19 @@ export function Records({ initialPeriod }: { initialPeriod?: Period }) {
                 <Icon name="search" size={18} /> Searching all dates
               </div>
             )}
+            <div className="status3" role="group" aria-label="Status">
+              <button className={f.status === 'all' ? 'on' : ''} aria-pressed={f.status === 'all'} onClick={() => setF({ ...f, status: 'all' })}>
+                All
+              </button>
+              <button className={`${f.status === 'pending' ? 'on p' : ''}`} aria-pressed={f.status === 'pending'} onClick={() => setF({ ...f, status: 'pending' })}>
+                Pending {pendingAll.length > 0 && <b>{pendingAll.length}</b>}
+              </button>
+              <button className={f.status === 'paid' ? 'on' : ''} aria-pressed={f.status === 'paid'} onClick={() => setF({ ...f, status: 'paid' })}>
+                Paid
+              </button>
+            </div>
             <div className="chips">
-              <button className={`chip on${searching ? ' dim' : ''}`} aria-haspopup="dialog" onClick={() => setSheet('period')}>
+              <button className={`chip on${searching || f.status === 'pending' ? ' dim' : ''}`} aria-haspopup="dialog" onClick={() => setSheet('period')}>
                 {label} <Icon name="down" size={14} />
               </button>
               {f.amount !== 'any' && (
@@ -145,13 +157,24 @@ export function Records({ initialPeriod }: { initialPeriod?: Period }) {
               )}
             </div>
 
+            {f.status === 'pending' ? (
+              <section className="waitcard" aria-label="Pending">
+                <small>Pending</small>
+                <b>{peso2(sum.pendingTotal)}</b>
+                <span>
+                  {sum.pendingCount} pending
+                  {sum.oldestPending != null && ` · oldest waiting ${waitText(Date.now() - sum.oldestPending)}`}
+                </span>
+              </section>
+            ) : null}
             <section className="closing" aria-label="Closing">
               <div className="top">
                 <div>
-                  <small>Closing · {label}</small>
+                  <small>Closing · {label} · Paid</small>
                   <b className="t">{peso(sum.total)}</b>
                   <span className="sub">
                     {sum.count} {sum.count === 1 ? 'cash-out' : 'cash-outs'} · Fees {peso2(sum.fees)}
+                    {sum.pendingCount > 0 && f.status !== 'pending' && ` · ${sum.pendingCount} pending ${peso(sum.pendingTotal)}`}
                   </span>
                 </div>
                 <button className="round" style={{ background: 'var(--green-soft)', color: 'var(--green-text)', boxShadow: 'none' }} aria-expanded={showWho} aria-label="Who saved" onClick={() => setShowWho(!showWho)}>
@@ -303,7 +326,9 @@ export function Records({ initialPeriod }: { initialPeriod?: Period }) {
 }
 
 export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: boolean; onDeleted?: () => void }) {
-  const { user, toast } = useApp();
+  const { user, toast, markPaid } = useApp();
+  const pending = isPending(r);
+  const waited = (r.paidAt ?? Date.now()) - r.savedAt;
   const [sure, setSure] = useState(false);
   const [photo, setPhoto] = useState<string | null>(r.thumb ?? null);
   const [photoDone, setPhotoDone] = useState(false);
@@ -328,10 +353,14 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
 
   const body = (
     <>
-      <div className="heroamt">
+      <div className={`heroamt${pending ? ' pend' : ''}`}>
+        <div className="badge">
+          <Icon name={pending ? 'clock' : 'check'} size={16} />
+          {pending ? 'Pending' : 'Paid'}
+        </div>
         <small>Amount</small>
         <b>{peso2(r.amount)}</b>
-        <span>Fee {peso2(r.fee)}</span>
+        <span>{pending ? `Fee ${peso2(r.fee)} (counts when paid)` : `Fee ${peso2(r.fee)} earned`}</span>
       </div>
       <div>
         <div className="muted small">Reference number</div>
@@ -358,7 +387,18 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
             {r.by} · {dateTime(r.savedAt)}
           </b>
         </div>
+        <div className="kv">
+          <span>Paid</span>
+          <b style={pending ? { color: 'var(--warn-text)' } : undefined}>{pending ? 'No' : r.paidBy && r.paidAt ? `${r.paidBy} · ${dateTime(r.paidAt)}` : 'Yes'}</b>
+        </div>
       </div>
+      {pending ? (
+        <div className="paidnote" style={{ background: 'var(--warn-bg)', color: 'var(--warn-text)' }}>
+          Waiting {waitText(waited)}. {waited >= LATE_MS ? 'This has been waiting a long time.' : 'Mark it Paid when you give the cash.'}
+        </div>
+      ) : (
+        r.paidAt && <div className="paidnote">Waited {waitText(waited)}. Everyone was told it was paid.</div>
+      )}
       {!photo && photoDone && <div className="muted small" style={{ textAlign: 'center' }}>No photo was saved for this record.</div>}
       {photo && (
         <>
@@ -374,6 +414,12 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
       <div className="muted small" style={{ textAlign: 'center' }}>
         Deleted automatically after 1 year.
       </div>
+      {pending && (
+        <button className="btn btn-primary" onClick={() => markPaid(r)}>
+          <Icon name="check" size={22} />
+          Mark as paid
+        </button>
+      )}
       {mine ? (
         <button
           className="btn btn-danger"
@@ -386,7 +432,7 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
           }}
         >
           <Icon name="trash" size={20} />
-          {sure ? 'Tap again to delete' : 'Delete this record'}
+          {sure ? 'Tap again to delete' : 'Delete'}
         </button>
       ) : (
         <div className="muted small" style={{ textAlign: 'center' }}>

@@ -12,6 +12,8 @@ export interface RecordsUpdate {
   sync: SyncState;
   /** Records other people just saved (for the in-app toast). */
   fresh: CashRecord[];
+  /** Records other people just marked as paid. */
+  paidNow: CashRecord[];
 }
 
 export interface DataApi {
@@ -25,6 +27,8 @@ export interface DataApi {
   /** Does not wait for the network. Problems arrive through onWriteError. */
   saveRecord(rec: NewRecord, opts: { allowDuplicate: boolean }): { id: string };
   deleteRecord(id: string): void;
+  /** Marks a pending record as paid (cash given). Anyone on the list can do it. Not awaited. */
+  markPaid(id: string, by: { uid: string; name: string }): void;
   /** Saves the sharper photo for a record, kept apart from the list so the list stays fast. Not awaited. */
   savePhoto(id: string, dataUrl: string): void;
   /** Loads a record's photo when it is opened. Null if there is none. */

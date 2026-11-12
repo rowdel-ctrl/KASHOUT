@@ -11,6 +11,8 @@
   --green-shadow: rgba(23, 128, 63, .28);
   --green-soft: #E4F5E9;
   --green-text: #0B5C30;
+  --late: #8A2A12;
+  --on-late: #FFFFFF;
   --live: #34C759;
   --amber: #E0A22A;
   --warn-bg: #FFF3D6;
@@ -28,6 +30,8 @@
 }
 
 html[data-theme='dark'] {
+  --late: #FF9C85;
+  --on-late: #1D1B16;
   --bg: #14110D;
   --card: #1F1B15;
   --ink: #F5EFE4;
@@ -55,6 +59,8 @@ html[data-theme='dark'] {
 
 @media (prefers-color-scheme: dark) {
   html[data-theme='system'] {
+    --late: #FF9C85;
+    --on-late: #1D1B16;
     --bg: #14110D;
     --card: #1F1B15;
     --ink: #F5EFE4;
@@ -221,7 +227,7 @@ input.box:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-
 .photo-card p { font-size: 14px; color: var(--muted); margin-top: 2px; }
 .photo-card .link { margin-top: 8px; display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--green-soft); color: var(--green-text); font-size: 14px; font-weight: 800; }
 
-.review { padding-bottom: calc(300px + var(--bottom)); }
+.review { padding-bottom: calc(400px + var(--bottom)); }
 .savebar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; background: var(--card); border-radius: 28px 28px 0 0; box-shadow: 0 -6px 20px rgba(29, 27, 22, .1); padding: 14px 20px calc(18px + var(--bottom)); }
 .savebar .in { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
 .warnbar { display: flex; gap: 10px; align-items: flex-start; background: var(--warn-bg); border: 1px solid var(--warn-line); color: var(--warn-text); border-radius: 18px; padding: 12px 14px; font-size: 16px; font-weight: 700; line-height: 1.35; animation: fade .2s ease; }
@@ -406,3 +412,31 @@ mark { background: var(--warn-bg); color: inherit; border-radius: 4px; padding: 
 .rec .av { width: 42px; height: 42px; }
 
 .search input[type='search']::-webkit-search-cancel-button, .search input[type='search']::-webkit-search-decoration { -webkit-appearance: none; appearance: none; display: none; }
+
+/* pending */
+.btn-pending { height: 54px; background: var(--warn-bg); border: 2px solid var(--amber); color: var(--warn-text); font-size: 17px; }
+.btn-pending:disabled { opacity: .5; }
+.rec.pending { background: var(--warn-bg); border-color: var(--amber); }
+.rec.pending.late { border-color: var(--late); }
+.tag { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 999px; background: var(--amber); color: #1D1B16; font-size: 12px; font-weight: 800; white-space: nowrap; margin-top: 3px; }
+.tag.late { background: var(--late); color: var(--on-late); }
+.pendingcard { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--warn-bg); border: 2px solid var(--amber); border-radius: 22px; padding: 12px 14px; }
+.pendingcard .ic { width: 44px; height: 44px; border-radius: 14px; background: var(--amber); color: #1D1B16; display: flex; align-items: center; justify-content: center; flex: none; }
+.pendingcard b { display: block; font-size: 17px; font-weight: 800; color: var(--warn-text); }
+.pendingcard span { font-size: 14px; font-weight: 700; color: var(--warn-text); }
+.pendingcard .see { margin-left: auto; height: 40px; padding: 0 14px; border-radius: 14px; background: var(--card); display: flex; align-items: center; font-size: 15px; font-weight: 800; color: var(--warn-text); flex: none; }
+.pendingcard em { font-style: normal; font-weight: 800; color: var(--late); }
+.status3 { display: flex; gap: 6px; margin-top: 12px; padding: 4px; border-radius: 18px; background: var(--line); }
+.status3 button { flex: 1; height: 44px; border: 0; border-radius: 14px; background: none; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 15px; font-weight: 800; color: var(--muted); }
+.status3 button.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+.status3 button.on.p { background: var(--amber); color: #1D1B16; box-shadow: none; }
+.status3 b { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--card); color: #1D1B16; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
+.waitcard { margin-top: 12px; background: var(--warn-bg); border: 2px solid var(--amber); border-radius: 24px; padding: 14px 16px; }
+.waitcard small { display: block; font-size: 13px; font-weight: 800; color: var(--warn-text); }
+.waitcard b { display: block; font-size: 26px; font-weight: 800; color: var(--warn-text); }
+.waitcard span { font-size: 14px; font-weight: 700; color: var(--warn-text); }
+.heroamt.pend { background: var(--amber); color: #1D1B16; }
+.heroamt .badge { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; margin-bottom: 8px; border-radius: 999px; background: rgba(255, 255, 255, .24); font-size: 13px; font-weight: 800; }
+.heroamt.pend .badge { background: var(--warn-bg); color: var(--warn-text); }
+.paidnote { background: var(--green-soft); color: var(--green-text); border-radius: 18px; padding: 12px 16px; font-size: 15px; font-weight: 700; line-height: 1.35; }
+.footbar { position: sticky; bottom: 0; }

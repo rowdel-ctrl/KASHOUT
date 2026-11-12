@@ -13,7 +13,7 @@ service cloud.firestore {
     }
 
     function validRecord(d) {
-      return d.keys().hasOnly(['ref', 'amount', 'fee', 'name', 'number', 'txAt', 'savedAt', 'by', 'byUid', 'thumb'])
+      return d.keys().hasOnly(['ref', 'amount', 'fee', 'name', 'number', 'txAt', 'savedAt', 'by', 'byUid', 'thumb', 'status'])
         && d.keys().hasAll(['ref', 'amount', 'fee', 'name', 'number', 'txAt', 'savedAt', 'by', 'byUid'])
         && d.ref is string && d.ref.size() <= 40
         && d.amount is number && d.amount > 0 && d.amount <= 1000000
@@ -24,7 +24,8 @@ service cloud.firestore {
         && d.savedAt is number
         && d.by is string && d.by.size() <= 60
         && d.byUid == request.auth.uid
-        && (!('thumb' in d) || (d.thumb is string && d.thumb.size() <= 60000));
+        && (!('thumb' in d) || (d.thumb is string && d.thumb.size() <= 60000))
+        && (!('status' in d) || d.status in ['paid', 'pending']);
     }
 
     // Nobody can read or change the allowlist from the app. Edit it in the Firebase console.
@@ -35,10 +36,19 @@ service cloud.firestore {
     match /records/{id} {
       allow read: if allowed();
       // The first save of a reference uses the reference as the document id.
-      // A second create with the same id is an update, which is denied below,
-      // so two phones cannot both save the same reference.
+      // A second create with the same id is an update, which is only allowed for
+      // pending -> paid (below), so two phones cannot both save the same reference.
       allow create: if allowed() && validRecord(request.resource.data);
-      allow update: if false;
+      // The only change allowed: a pending record becomes paid. Anyone on the list can do it.
+      // Nothing else about the record can change.
+      allow update: if allowed()
+        && resource.data.get('status', 'paid') == 'pending'
+        && request.resource.data.status == 'paid'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paidBy', 'paidByUid', 'paidAt'])
+        && request.resource.data.paidByUid == request.auth.uid
+        && request.resource.data.paidBy is string
+        && request.resource.data.paidBy.size() <= 60
+        && request.resource.data.paidAt is number;
       // Only the person who saved a record can delete it (Undo and Delete).
       // Anyone on the list may delete a record older than one year (automatic cleanup).
       allow delete: if allowed()

@@ -81,7 +81,7 @@ describe('summarize', () => {
   });
 
   it('handles an empty list', () => {
-    expect(summarize([])).toEqual({ count: 0, total: 0, fees: 0, people: [] });
+    expect(summarize([])).toEqual({ count: 0, total: 0, fees: 0, people: [], pendingCount: 0, pendingTotal: 0, oldestPending: null });
   });
 });
 
@@ -265,5 +265,67 @@ describe('grouped reference', () => {
 
   it('shows the plain reference when nothing matches', () => {
     expect(highlightRef('0046276076549', '999')).toEqual([{ t: '0046 2760 76549', hit: false }]);
+  });
+});
+
+
+import { isPending, whenOf, LATE_MS } from '../src/lib/records';
+import { waitText } from '../src/lib/format';
+
+describe('pending and paid', () => {
+  const P = [
+    rec('2000000000001', { amount: 1015, fee: 20, status: 'pending', savedAt: at(11, 9), by: 'Rodel' }),
+    rec('2000000000002', { amount: 285, fee: 10, status: 'pending', savedAt: at(11, 14), by: 'Ana' }),
+    rec('2000000000003', { amount: 500, fee: 10, status: 'paid', savedAt: at(11, 8), by: 'Ana' }),
+    rec('2000000000004', { amount: 300, fee: 10, savedAt: at(11, 10), by: 'Ben' }), // old record: no status = paid
+    // saved yesterday as pending, paid today
+    rec('2000000000005', { amount: 1000, fee: 15, status: 'paid', savedAt: at(10, 16), paidAt: at(11, 12), paidBy: 'Ben', paidByUid: 'u-ben', by: 'Ana' }),
+  ];
+
+  it('knows what is pending; records without a status are paid', () => {
+    expect(P.map(isPending)).toEqual([true, true, false, false, false]);
+  });
+
+  it('a record paid later counts on the day the cash went out', () => {
+    expect(whenOf(P[4])).toBe(at(11, 12));
+    expect(whenOf(P[0])).toBe(at(11, 9));
+    const today = applyFilters(P, f({ period: 'today' }), NOW).map((r) => r.ref);
+    expect(today).toContain('2000000000005'); // saved yesterday, paid today
+    const yesterday = applyFilters(P, f({ period: 'yesterday' }), NOW).map((r) => r.ref);
+    expect(yesterday).not.toContain('2000000000005');
+  });
+
+  it('totals and fees count only paid records, and pending ones are listed apart', () => {
+    const s = summarize(applyFilters(P, f({ period: 'today' }), NOW));
+    expect(s.count).toBe(3);
+    expect(s.total).toBe(500 + 300 + 1000);
+    expect(s.fees).toBe(10 + 10 + 15);
+    expect(s.pendingCount).toBe(2);
+    expect(s.pendingTotal).toBe(1015 + 285);
+    expect(s.oldestPending).toBe(at(11, 9));
+    expect(s.people.map((p) => p.name).sort()).toEqual(['Ana', 'Ben']);
+  });
+
+  it('the Pending view shows every pending record, whatever the date', () => {
+    const old = rec('2000000000006', { status: 'pending', savedAt: at(1, 9), amount: 50 });
+    expect(applyFilters([...P, old], f({ period: 'today', status: 'pending' }), NOW)).toHaveLength(3);
+  });
+
+  it('the Paid view hides pending records', () => {
+    const paid = applyFilters(P, f({ period: 'all', status: 'paid' }), NOW);
+    expect(paid.map((r) => r.ref).sort()).toEqual(['2000000000003', '2000000000004', '2000000000005']);
+  });
+
+  it('search finds pending records too, and respects the status choice', () => {
+    expect(applyFilters(P, f({ q: '0001' }), NOW).map((r) => r.ref)).toEqual(['2000000000001']);
+    expect(applyFilters(P, f({ q: '2000000', status: 'pending' }), NOW)).toHaveLength(2);
+  });
+
+  it('reminder after 2 hours and readable waiting time', () => {
+    expect(LATE_MS).toBe(7_200_000);
+    expect(waitText(25 * 60_000)).toBe('25 min');
+    expect(waitText(3 * 3_600_000 + 10 * 60_000)).toBe('3 h');
+    expect(waitText(50 * 3_600_000)).toBe('2 d');
+    expect(waitText(-5)).toBe('0 min');
   });
 });

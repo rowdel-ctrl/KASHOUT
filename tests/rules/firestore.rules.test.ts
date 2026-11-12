@@ -164,3 +164,51 @@ describe('photos', () => {
   });
 });
 
+describe('pending and paid', () => {
+  const pending = (uid: string, over: Record<string, unknown> = {}) => rec(uid, { status: 'pending', savedAt: Date.now(), ...over });
+  const paidFields = (uid: string, name = 'Ben') => ({ status: 'paid', paidBy: name, paidByUid: uid, paidAt: Date.now() });
+
+  it('a pending record can be saved, but not with paid details already filled in', async () => {
+    await assertSucceeds(setDoc(doc(ana(env), 'records', 'p1'), pending('ana')));
+    await assertFails(setDoc(doc(ana(env), 'records', 'p2'), { ...pending('ana'), paidBy: 'Ana' }));
+    await assertFails(setDoc(doc(ana(env), 'records', 'p3'), pending('ana', { status: 'maybe' })));
+  });
+
+  it('anyone on the list can mark a pending record as paid', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'records', 'p1'), pending('ben')));
+    await assertSucceeds(updateDoc(doc(ana(env), 'records', 'p1'), paidFields('ana', 'Ana')));
+  });
+
+  it('marking as paid cannot change anything else', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'records', 'p1'), pending('ben')));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'p1'), { ...paidFields('ana', 'Ana'), amount: 1 }));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'p1'), { ...paidFields('ana', 'Ana'), by: 'Someone' }));
+  });
+
+  it('cannot be marked as paid in someone else\'s name, or half-filled', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'records', 'p1'), pending('ben')));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'p1'), paidFields('ben', 'Ben')));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'p1'), { status: 'paid' }));
+  });
+
+  it('a paid record cannot be changed or put back to pending, and old records (no status) are paid', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'records', 'done'), rec('ben', { status: 'paid', savedAt: Date.now() }));
+      await setDoc(doc(ctx.firestore(), 'records', 'old'), rec('ben', { savedAt: Date.now() }));
+    });
+    await assertFails(updateDoc(doc(ana(env), 'records', 'done'), paidFields('ana', 'Ana')));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'done'), { status: 'pending' }));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'old'), paidFields('ana', 'Ana')));
+  });
+
+  it('accounts not on the list cannot mark anything as paid', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'records', 'p1'), pending('ben')));
+    await assertFails(updateDoc(doc(stranger(env), 'records', 'p1'), paidFields('eve', 'Eve')));
+  });
+
+  it('only the person who saved a pending record can delete it', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'records', 'p1'), pending('ben')));
+    await assertFails(deleteDoc(doc(ana(env), 'records', 'p1')));
+  });
+});
+

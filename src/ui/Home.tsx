@@ -1,13 +1,18 @@
-import { isToday, peso, peso2 } from '../lib/format';
+import { peso, peso2, waitText } from '../lib/format';
+import { LATE_MS, applyFilters, summarize } from '../lib/records';
+import { DEFAULT_FILTERS } from '../lib/types';
 import { Icon } from './icons';
 import { NavBar, RecRow } from './components';
 import { useApp } from './context';
 
 export function Home() {
   const { user, records, syncLabel, go, tab, undo, undoSave } = useApp();
-  const today = records.filter((r) => isToday(r.savedAt));
-  const total = today.reduce((s, r) => s + r.amount, 0);
-  const fees = today.reduce((s, r) => s + r.fee, 0);
+  // Paid today: cash that went out today. Pending records are counted apart.
+  const day = summarize(applyFilters(records, { ...DEFAULT_FILTERS, period: 'today' }));
+  const waiting = summarize(applyFilters(records, { ...DEFAULT_FILTERS, status: 'pending' }));
+  const waited = waiting.oldestPending != null ? Date.now() - waiting.oldestPending : 0;
+  const total = day.total;
+  const fees = day.fees;
   const latest = records.slice(0, 5);
 
   return (
@@ -35,11 +40,25 @@ export function Home() {
               <b>Record a cash-out</b>
               <span>Take a photo or pick a screenshot</span>
             </button>
+            {waiting.pendingCount > 0 && (
+              <button className="pendingcard" onClick={() => tab({ name: 'records', status: 'pending' })}>
+                <span className="ic">
+                  <Icon name="clock" size={24} />
+                </span>
+                <span>
+                  <b>{waiting.pendingCount} pending</b>
+                  <span>
+                    {peso2(waiting.pendingTotal)} · oldest waiting {waited >= LATE_MS ? <em>{waitText(waited)}</em> : waitText(waited)}
+                  </span>
+                </span>
+                <span className="see">See</span>
+              </button>
+            )}
             <div className="stats">
               <div className="stat">
-                <small>Today</small>
+                <small>Paid today</small>
                 <b>{peso(total)}</b>
-                <span>{today.length} cash-outs</span>
+                <span>{day.count} cash-outs</span>
               </div>
               <div className="stat">
                 <small>Fees today</small>
@@ -74,7 +93,7 @@ export function Home() {
       {undo && (
         <div className="undo" role="status">
           <div>
-            Saved
+            {undo.status === 'pending' ? 'Saved as pending' : 'Saved'}
             <button onClick={undoSave}>Undo</button>
           </div>
           <span className="bar">

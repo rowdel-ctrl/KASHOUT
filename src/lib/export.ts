@@ -13,7 +13,7 @@ function csvCell(v: string | number): string {
 
 /** Excel opens this directly. The reference is written as ="..." so Excel keeps all 13 digits. */
 export function toCsv(records: CashRecord[]): string {
-  const head = ['Saved', 'Reference', 'Amount', 'Fee', 'Name', 'Number', 'Receipt date', 'Saved by'];
+  const head = ['Saved', 'Reference', 'Amount', 'Fee', 'Name', 'Number', 'Receipt date', 'Saved by', 'Status', 'Paid by', 'Paid at'];
   const rows = records.map((r) => [
     dateTime(r.savedAt),
     `="${r.ref}"`,
@@ -23,6 +23,9 @@ export function toCsv(records: CashRecord[]): string {
     r.number ? `="${r.number.replace(/"/g, '')}"` : '',
     r.txAt ? dateTime(r.txAt) : '',
     r.by,
+    r.status === 'pending' ? 'Pending' : 'Paid',
+    r.paidBy ?? '',
+    r.paidAt ? dateTime(r.paidAt) : '',
   ]);
   return '﻿' + [head, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
 }
@@ -32,8 +35,10 @@ export function buildPdf(records: CashRecord[], title: string): jsPDF {
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   const M = 36;
-  const total = records.reduce((s, r) => s + r.amount, 0);
-  const fees = records.reduce((s, r) => s + r.fee, 0);
+  const paid = records.filter((r) => r.status !== 'pending');
+  const total = paid.reduce((s, r) => s + r.amount, 0);
+  const fees = paid.reduce((s, r) => s + r.fee, 0);
+  const waiting = records.length - paid.length;
   const cols = [
     { h: 'Saved', x: M, w: 92 },
     { h: 'Reference', x: M + 92, w: 92 },
@@ -41,7 +46,8 @@ export function buildPdf(records: CashRecord[], title: string): jsPDF {
     { h: 'Fee', x: M + 246, w: 38 },
     { h: 'Name', x: M + 284, w: 100 },
     { h: 'Number', x: M + 384, w: 90 },
-    { h: 'By', x: M + 474, w: 60 },
+    { h: 'By', x: M + 474, w: 38 },
+    { h: 'Status', x: M + 512, w: 40 },
   ];
   let y = M;
   const header = () => {
@@ -56,7 +62,7 @@ export function buildPdf(records: CashRecord[], title: string): jsPDF {
   doc.setFont('helvetica', 'bold').setFontSize(16).text(title, M, y);
   y += 20;
   doc.setFont('helvetica', 'normal').setFontSize(10);
-  doc.text(`${records.length} cash-outs   Given out: ${peso2(total).replace('₱', 'PHP ')}   Fees: ${peso2(fees).replace('₱', 'PHP ')}`, M, y);
+  doc.text(`${paid.length} paid   ${waiting} pending   Given out: ${peso2(total).replace('₱', 'PHP ')}   Fees: ${peso2(fees).replace('₱', 'PHP ')}`, M, y);
   y += 22;
   header();
   doc.setFontSize(9);
@@ -67,7 +73,7 @@ export function buildPdf(records: CashRecord[], title: string): jsPDF {
       header();
       doc.setFontSize(9);
     }
-    const cells = [dateTime(r.savedAt), r.ref, r.amount.toFixed(2), r.fee.toFixed(2), r.name, r.number, r.by];
+    const cells = [dateTime(r.savedAt), r.ref, r.amount.toFixed(2), r.fee.toFixed(2), r.name, r.number, r.by, r.status === 'pending' ? 'Pending' : 'Paid'];
     cells.forEach((t, i) => doc.text(doc.splitTextToSize(t, cols[i].w - 4)[0] ?? '', cols[i].x, y));
     y += 14;
   }

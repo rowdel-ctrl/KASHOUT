@@ -11,8 +11,14 @@ export interface CashRecord {
   savedAt: number;
   by: string;
   byUid: string;
-  /** Small JPEG data URL of the receipt photo (optional). */
+  /** Small JPEG data URL of the receipt photo (older records only). */
   thumb?: string;
+  /** "pending" = recorded, cash not given yet. Records without a status are paid. */
+  status?: 'paid' | 'pending';
+  /** Who gave the cash, and when, for a record that was saved as pending. */
+  paidBy?: string;
+  paidByUid?: string;
+  paidAt?: number;
 }
 
 export type NewRecord = Omit<CashRecord, 'id'>;
@@ -82,6 +88,7 @@ export interface Draft {
 
 export type Period = 'today' | 'yesterday' | 'week' | 'all' | 'custom';
 export type AmountBand = 'any' | 'u1k' | 'b1k5k' | 'o5k';
+export type StatusFilter = 'all' | 'pending' | 'paid';
 
 export interface Filters {
   period: Period;
@@ -91,17 +98,19 @@ export interface Filters {
   amount: AmountBand;
   /** Staff first name, or "all". */
   staff: string;
+  /** Paid, pending, or both. */
+  status: StatusFilter;
   /** Search text (reference, name, number or amount). */
   q: string;
 }
 
-export const DEFAULT_FILTERS: Filters = { period: 'today', from: '', to: '', amount: 'any', staff: 'all', q: '' };
+export const DEFAULT_FILTERS: Filters = { period: 'today', from: '', to: '', amount: 'any', staff: 'all', status: 'all', q: '' };
 
 export type Route =
   | { name: 'home' }
   | { name: 'scan' }
   | { name: 'review'; draft: Draft }
-  | { name: 'records'; period?: Period }
+  | { name: 'records'; period?: Period; status?: StatusFilter }
   | { name: 'detail'; id: string }
   | { name: 'settings' }
   | { name: 'fees' };

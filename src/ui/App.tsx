@@ -81,7 +81,7 @@ function Screen({ route }: { route: ReturnType<typeof useApp>['route'] }) {
     case 'home': return <Home />;
     case 'scan': return <Scan />;
     case 'review': return <Review initial={route.draft} />;
-    case 'records': return <Records initialPeriod={route.period} />;
+    case 'records': return <Records key={route.status ?? 'all'} initialPeriod={route.period} initialStatus={route.status} />;
     case 'detail': return <Detail id={route.id} />;
     case 'settings': return <SettingsScreen />;
     case 'fees': return <FeeTable />;

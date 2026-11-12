@@ -22,6 +22,7 @@ import {
   persistentLocalCache,
   query,
   setDoc,
+  updateDoc,
   where,
   writeBatch,
 } from 'firebase/firestore';
@@ -85,15 +86,18 @@ export function createFirebaseApi(cfg: FirebaseSettings): DataApi {
         (snap) => {
           const records = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CashRecord, 'id'>) }));
           const fresh: CashRecord[] = [];
+          const paidNow: CashRecord[] = [];
           if (!first && !snap.metadata.fromCache) {
             for (const ch of snap.docChanges()) {
-              if (ch.type !== 'added' || ch.doc.metadata.hasPendingWrites) continue;
+              if (ch.doc.metadata.hasPendingWrites) continue;
               const r = { id: ch.doc.id, ...(ch.doc.data() as Omit<CashRecord, 'id'>) };
-              if (r.byUid !== auth.currentUser?.uid && Date.now() - r.savedAt < FRESH_MS) fresh.push(r);
+              const me = auth.currentUser?.uid;
+              if (ch.type === 'added' && r.byUid !== me && Date.now() - r.savedAt < FRESH_MS) fresh.push(r);
+              if (ch.type === 'modified' && r.status === 'paid' && r.paidByUid && r.paidByUid !== me && Date.now() - (r.paidAt ?? 0) < FRESH_MS) paidNow.push(r);
             }
           }
           first = false;
-          cb({ records, sync: { pending: snap.metadata.hasPendingWrites, fromCache: snap.metadata.fromCache }, fresh });
+          cb({ records, sync: { pending: snap.metadata.hasPendingWrites, fromCache: snap.metadata.fromCache }, fresh, paidNow });
         },
         (err) => onError((err as { code?: string }).code ?? 'unknown'),
       );
@@ -120,6 +124,13 @@ export function createFirebaseApi(cfg: FirebaseSettings): DataApi {
     deleteRecord(id) {
       deleteDoc(doc(db, 'records', id)).catch(() => {});
       deleteDoc(doc(db, 'photos', id)).catch(() => {});
+    },
+
+    markPaid(id, by) {
+      updateDoc(doc(db, 'records', id), { status: 'paid', paidBy: by.name, paidByUid: by.uid, paidAt: Date.now() }).catch((e: { code?: string }) => {
+        const msg = e.code === 'permission-denied' ? 'Could not mark it as paid. The owner needs to publish the new rules in Firebase.' : 'Could not mark it as paid. Please try again.';
+        errCbs.forEach((cb) => cb(msg, ''));
+      });
     },
 
     savePhoto(id, dataUrl) {

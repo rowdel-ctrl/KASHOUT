@@ -13,7 +13,7 @@ import { isNative } from '../native/platform';
 import type { SyncState } from '../data/api';
 
 export interface Toast { id: number; text: string; err?: boolean }
-export interface UndoState { id: string; draft: Draft }
+export interface UndoState { id: string; draft: Draft; status: 'paid' | 'pending' }
 
 interface Ctx {
   user: AppUser;
@@ -30,7 +30,8 @@ interface Ctx {
   tab: (r: Route) => void;
   toast: (text: string, err?: boolean) => void;
   undo: UndoState | null;
-  saveDraft: (d: Draft, allowDuplicate: boolean) => void;
+  saveDraft: (d: Draft, allowDuplicate: boolean, status?: 'paid' | 'pending') => void;
+  markPaid: (r: CashRecord) => void;
   undoSave: () => void;
   signOut: () => void;
 }
@@ -90,8 +91,10 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
         setDenied(false);
         setRecords(u.records);
         setSync(u.sync);
-        if (u.fresh.length === 1) toast(`${u.fresh[0].by} saved ${peso(u.fresh[0].amount)}`);
+        if (u.fresh.length === 1) toast(`${u.fresh[0].by} saved ${peso(u.fresh[0].amount)}${u.fresh[0].status === 'pending' ? ' (pending)' : ''}`);
         else if (u.fresh.length > 1) toast(`${u.fresh.length} new cash-outs saved by others`);
+        if (u.paidNow.length === 1) toast(`${u.paidNow[0].paidBy} marked ${peso(u.paidNow[0].amount)} as paid`);
+        else if (u.paidNow.length > 1) toast(`${u.paidNow.length} records marked as paid by others`);
       },
       (code) => {
         if (code === 'permission-denied') setDenied(true);
@@ -137,7 +140,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
   }, [stack.length, back]);
 
   const saveDraft = useCallback(
-    (d: Draft, allowDuplicate: boolean) => {
+    (d: Draft, allowDuplicate: boolean, status: 'paid' | 'pending' = 'paid') => {
       const s = settingsRef.current;
       const amount = parseMoney(d.amount);
       const rec: NewRecord = {
@@ -150,17 +153,28 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
         savedAt: Date.now(),
         by: user.name,
         byUid: user.uid,
+        status,
       };
       const { id } = api.saveRecord(rec, { allowDuplicate });
       if (s.savePhoto && d.photo) api.savePhoto(id, d.photo);
-      setUndo({ id, draft: d });
+      setUndo({ id, draft: d, status });
       window.clearTimeout(undoTimer.current);
       undoTimer.current = window.setTimeout(() => setUndo(null), 5000);
       void buzzSaved();
-      void sendNtfy(topicRef.current, `${user.name}: ${peso(amount)} cashed out`);
+      void sendNtfy(topicRef.current, `${user.name}: ${peso(amount)} ${status === 'pending' ? 'pending' : 'cashed out'}`);
       setStack([{ name: 'home' }]);
     },
     [user],
+  );
+
+  const markPaid = useCallback(
+    (r: CashRecord) => {
+      api.markPaid(r.id, { uid: user.uid, name: user.name });
+      void buzzSaved();
+      void sendNtfy(topicRef.current, `${r.by}: ${peso(r.amount)} cashed out\nPaid by ${user.name}.`);
+      toast('Marked as paid');
+    },
+    [user, toast],
   );
 
   const undoSave = useCallback(() => {
@@ -184,7 +198,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
 
   return (
     <AppCtx.Provider
-      value={{ user, records, syncLabel, alertTopic, settings, updateSettings, fees, route, go, replace, back, tab, toast, undo, saveDraft, undoSave, signOut }}
+      value={{ user, records, syncLabel, alertTopic, settings, updateSettings, fees, route, go, replace, back, tab, toast, undo, saveDraft, markPaid, undoSave, signOut }}
     >
       {children({ route, toasts, denied })}
     </AppCtx.Provider>

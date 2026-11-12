@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
-import { formatRef, peso2, timeOf } from '../lib/format';
-import { highlight, highlightRef, matchRecord } from '../lib/records';
+import { formatRef, peso2, timeOf, waitText } from '../lib/format';
+import { LATE_MS, highlight, highlightRef, isPending, matchRecord, whenOf } from '../lib/records';
 import type { CashRecord, Route } from '../lib/types';
 import { useApp } from './context';
 import { Icon } from './icons';
@@ -115,6 +115,9 @@ export function RecRow({ r, onClick, fresh, selected, q }: { r: CashRecord; onCl
   const green = r.ref.charCodeAt(r.ref.length - 1) % 2 === 0;
   const field = q ? matchRecord(r, q) : null;
   const amountText = peso2(r.amount);
+  const pending = isPending(r);
+  const waited = Date.now() - r.savedAt;
+  const late = pending && waited >= LATE_MS;
   const inner = (
     <>
       <span className={`av${green ? ' g' : ''}`}>{initials(r.name)}</span>
@@ -135,11 +138,15 @@ export function RecRow({ r, onClick, fresh, selected, q }: { r: CashRecord; onCl
       </span>
       <span className="right">
         <div className="amt">{field === 'amount' ? <mark>{amountText}</mark> : amountText}</div>
-        <div className="when">{timeOf(r.savedAt)}</div>
+        {pending ? (
+          <div className={`tag${late ? ' late' : ''}`}>{late ? `Pending · ${waitText(waited)}` : 'Pending'}</div>
+        ) : (
+          <div className="when">{timeOf(whenOf(r))}</div>
+        )}
       </span>
     </>
   );
-  const cls = `rec${fresh ? ' new' : ''}${selected ? ' sel' : ''}`;
+  const cls = `rec${fresh ? ' new' : ''}${selected ? ' sel' : ''}${pending ? ' pending' : ''}${late ? ' late' : ''}`;
   return onClick ? (
     <button className={cls} onClick={onClick} aria-pressed={selected}>
       {inner}

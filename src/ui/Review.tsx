@@ -12,6 +12,7 @@ export function Review({ initial }: { initial: Draft }) {
   const { settings, fees, records, saveDraft, tab } = useApp();
   const [d, setD] = useState<Draft>(initial);
   const [dup, setDup] = useState<CashRecord | null>(null);
+  const [saveAs, setSaveAs] = useState<'paid' | 'pending'>('paid');
   const [sheet, setSheet] = useState<'fee' | 'customer' | 'read' | null>(null);
   const [viewing, setViewing] = useState(false);
 
@@ -36,10 +37,11 @@ export function Review({ initial }: { initial: Draft }) {
     });
   }
 
-  function onSave() {
+  function onSave(status: 'paid' | 'pending') {
+    setSaveAs(status);
     const found = records.find((r) => r.ref === refDigits);
     if (found) setDup(found);
-    else saveDraft({ ...d, ref: refDigits }, false);
+    else saveDraft({ ...d, ref: refDigits }, false, status);
   }
 
   return (
@@ -111,9 +113,17 @@ export function Review({ initial }: { initial: Draft }) {
               <b>Please check.</b> {warns.map((w) => w.text).join(' ')}
             </WarnBar>
           )}
-          <button className="btn btn-primary" disabled={!canSave} onClick={onSave}>
-            Save cash-out
+          <button className="btn btn-primary" disabled={!canSave} onClick={() => onSave('paid')}>
+            <Icon name="check" size={22} />
+            Save · Paid
           </button>
+          <button className="btn btn-pending" disabled={!canSave} onClick={() => onSave('pending')}>
+            <Icon name="clock" size={22} />
+            Save · Pending
+          </button>
+          <div className="muted small" style={{ textAlign: 'center', lineHeight: 1.35 }}>
+            Pending keeps the receipt. Mark it <b>Paid</b> when you give the cash.
+          </div>
           <button className="btn btn-text" onClick={() => tab({ name: 'home' })}>
             Discard
           </button>
@@ -221,7 +231,7 @@ export function Review({ initial }: { initial: Draft }) {
             <button className="btn btn-primary" onClick={() => tab({ name: 'home' })}>
               Don't save
             </button>
-            <button className="btn btn-danger" onClick={() => saveDraft({ ...d, ref: refDigits }, true)}>
+            <button className="btn btn-danger" onClick={() => saveDraft({ ...d, ref: refDigits }, true, saveAs)}>
               This is different. Save anyway
             </button>
           </div>

@@ -13,9 +13,9 @@ export function createMemoryApi(): DataApi {
   const feeCbs = new Set<(t: FeeTier[] | null) => void>();
   const errCbs = new Set<(m: string, ref: string) => void>();
 
-  const emit = (fresh: CashRecord[] = []) => {
+  const emit = (fresh: CashRecord[] = [], paidNow: CashRecord[] = []) => {
     const sorted = [...records].sort((a, b) => b.savedAt - a.savedAt);
-    recCbs.forEach((cb) => cb({ records: sorted, sync: { pending: false, fromCache: false }, fresh }));
+    recCbs.forEach((cb) => cb({ records: sorted, sync: { pending: false, fromCache: false }, fresh, paidNow }));
   };
 
   return {
@@ -47,6 +47,10 @@ export function createMemoryApi(): DataApi {
       records = [...records, { ...rec, id }];
       emit();
       return { id };
+    },
+    markPaid(id, by) {
+      records = records.map((r) => (r.id === id && r.status === 'pending' ? { ...r, status: 'paid' as const, paidBy: by.name, paidByUid: by.uid, paidAt: Date.now() } : r));
+      emit();
     },
     savePhoto(id, dataUrl) {
       photos.set(id, dataUrl);
@@ -102,5 +106,8 @@ function seed(): CashRecord[] {
     mk('6046809238200', 800, 15, 'MI**A C.', '09171234506', ago(320), 'Ana'),
     mk('6046809238211', 1500, 20, 'JU**N B.', '09171234507', yesterday(17, 20), 'Ana'),
     mk('6046809238222', 600, 10, 'CA**S D.', '09171234508', yesterday(12, 3), 'Tita Mel'),
+    // Recorded, cash not given yet. One has been waiting more than 2 hours.
+    { ...mk('7000000000001', 285, 10, 'PE***O R.', '09171234509', ago(25), 'Ana'), status: 'pending' as const },
+    { ...mk('7000000000002', 1015, 20, '', '', ago(190), 'Ben'), status: 'pending' as const },
   ];
 }
