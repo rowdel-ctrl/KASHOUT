@@ -710,3 +710,10 @@ h1, h2, h3, .h1, .topbar h1, .sheet h2, .stat b, .rec .ref, .rec .amt, .bigref, 
 .istats small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .istats b { display: block; overflow: hidden; text-overflow: ellipsis; }
 .itiles .tile b { font-size: clamp(22px, 7vw, 28px); }
+
+/* Home on a tall phone: the totals stay at the top; with no records the message sits in the middle of the free space */
+@media (max-width: 767px) {
+  .page.home .home-grid .left { flex: 0 0 auto; }
+  .page.home .home-grid .right { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+  .page.home .home-grid .right .emptybox { flex: 1 1 auto; justify-content: center; padding-top: 10px; padding-bottom: 100px; }
+}
