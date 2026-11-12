@@ -2,7 +2,7 @@ import { App as CapApp } from '@capacitor/app';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../data';
 import { DEFAULT_FEES } from '../lib/fees';
-import { parseMoney, peso } from '../lib/format';
+import { dayKey, nextCutoff, parseMoney, peso } from '../lib/format';
 import { diffFields, fieldsOf, type EditFields } from '../lib/edit';
 import {
   type AppUser, type CashRecord, type Draft, type FeeTier, type NewRecord, type Route, type Settings,
@@ -28,6 +28,8 @@ export interface LastSaved { id: string; amount: number; name: string; status: '
 interface Ctx {
   user: AppUser;
   records: CashRecord[];
+  /** The business day (starts at 2:00 AM) as YYYY-MM-DD. It changes at 2:00 AM, so lists can refresh. */
+  today: string;
   syncLabel: { text: string; wait: boolean };
   alertTopic: string;
   settings: Settings;
@@ -83,6 +85,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
   const [records, setRecords] = useState<CashRecord[]>([]);
   const [sync, setSync] = useState<SyncState>({ pending: false, fromCache: true });
   const [online, setOnline] = useState(navigator.onLine);
+  const [today, setToday] = useState(() => dayKey(Date.now()));
   const [denied, setDenied] = useState(false);
   const [fees, setFees] = useState<FeeTier[]>(DEFAULT_FEES);
   const [alertTopic, setAlertTopic] = useState('');
@@ -124,6 +127,26 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
     return () => {
       window.removeEventListener('online', on);
       window.removeEventListener('offline', off);
+    };
+  }, []);
+
+  // The day changes at 2:00 AM, not midnight. Refresh then, and whenever the app is opened again.
+  useEffect(() => {
+    let timer = 0;
+    const refresh = () => setToday(dayKey(Date.now()));
+    const arm = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { refresh(); arm(); }, Math.max(1000, nextCutoff(Date.now()) - Date.now() + 1000));
+    };
+    const onShow = () => { if (document.visibilityState === 'visible') { refresh(); arm(); } };
+    arm();
+    document.addEventListener('visibilitychange', onShow);
+    let handle: { remove: () => Promise<void> } | undefined;
+    if (isNative) void CapApp.addListener('appStateChange', ({ isActive }) => { if (isActive) { refresh(); arm(); } }).then((h) => (handle = h));
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onShow);
+      void handle?.remove();
     };
   }, []);
 
@@ -369,7 +392,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
 
   return (
     <AppCtx.Provider
-      value={{ user, records, syncLabel, alertTopic, settings, updateSettings, fees, route, go, replace, back, tab, toast, undo, lastSaved, editRecord, t, unsaved, keepDraft, dropDraft, resumeDraft, setLeaveGuard, update, appVersion, checkUpdate, downloadUpdate, laterUpdate, saveDraft, markPaid, undoSave, signOut }}
+      value={{ user, records, today, syncLabel, alertTopic, settings, updateSettings, fees, route, go, replace, back, tab, toast, undo, lastSaved, editRecord, t, unsaved, keepDraft, dropDraft, resumeDraft, setLeaveGuard, update, appVersion, checkUpdate, downloadUpdate, laterUpdate, saveDraft, markPaid, undoSave, signOut }}
     >
       {children({ route, toasts, denied })}
     </AppCtx.Provider>

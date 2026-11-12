@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyFilters, dayLabel, groupByDay, inBand, periodLabel, staffNames, summarize } from '../src/lib/records';
+import { businessDayStart, dayKey, nextCutoff } from '../src/lib/format';
 import { reviewWarnings } from '../src/lib/warnings';
 import { DEFAULT_FILTERS, type CashRecord, type Draft, type Filters } from '../src/lib/types';
 
@@ -363,5 +364,50 @@ describe('groupByDay', () => {
   });
   it('no records gives no groups', () => {
     expect(groupByDay([], now)).toEqual([]);
+  });
+});
+
+describe('the day starts at 2:00 AM', () => {
+  const at = (d: number, h: number, m = 0) => new Date(2026, 10, d, h, m).getTime();
+  const mk = (id: string, savedAt: number, amount = 100): CashRecord => ({ id, ref: id, amount, fee: 5, name: '', number: '', txAt: null, savedAt, by: 'Ana', byUid: 'a' });
+
+  it('1:30 AM still belongs to the night before', () => {
+    expect(dayKey(at(13, 1, 30))).toBe(dayKey(at(12, 23, 0)));
+    expect(dayKey(at(13, 1, 59))).toBe(dayKey(at(12, 12, 0)));
+    expect(dayKey(at(13, 2, 0))).not.toBe(dayKey(at(12, 23, 0)));
+    expect(dayKey(at(13, 2, 0))).toBe(dayKey(at(13, 15, 0)));
+  });
+  it('Today runs from 2:00 AM to 2:00 AM', () => {
+    const list = [mk('late', at(12, 23, 0)), mk('after-midnight', at(13, 0, 30)), mk('morning', at(12, 8, 0)), mk('earlier', at(12, 1, 0))];
+    // It is 1 AM on Nov 13: still the Nov 12 business day.
+    const night = applyFilters(list, { ...DEFAULT_FILTERS, period: 'today' }, at(13, 1, 0));
+    expect(night.map((r) => r.id).sort()).toEqual(['after-midnight', 'late', 'morning']);
+    // At 3 AM it is the Nov 13 day: only records after 2:00 AM count, and none exist yet.
+    expect(applyFilters(list, { ...DEFAULT_FILTERS, period: 'today' }, at(13, 3, 0))).toEqual([]);
+    // Yesterday at 3 AM on Nov 13 is the whole Nov 12 business day.
+    expect(applyFilters(list, { ...DEFAULT_FILTERS, period: 'yesterday' }, at(13, 3, 0)).map((r) => r.id).sort()).toEqual(['after-midnight', 'late', 'morning']);
+  });
+  it('groups after-midnight records under the day before', () => {
+    const g = groupByDay([mk('a', at(13, 0, 40)), mk('b', at(12, 22, 0))], at(13, 1, 0));
+    expect(g).toHaveLength(1);
+    expect(g[0].kind).toBe('today');
+    expect(g[0].count).toBe(2);
+  });
+  it('a custom date range uses 2:00 AM to 2:00 AM too', () => {
+    const list = [mk('in', at(13, 1, 0)), mk('out', at(13, 3, 0))];
+    const r = applyFilters(list, { ...DEFAULT_FILTERS, period: 'custom', from: '2026-11-12', to: '2026-11-12' }, at(14, 12, 0));
+    expect(r.map((x) => x.id)).toEqual(['in']);
+  });
+  it('the next cut-off is the next 2:00 AM', () => {
+    expect(nextCutoff(at(12, 15, 0))).toBe(at(13, 2, 0));
+    expect(nextCutoff(at(13, 1, 0))).toBe(at(13, 2, 0));
+    expect(businessDayStart(at(13, 1, 0))).toBe(at(12, 2, 0));
+  });
+  it('a receipt from 11 PM is not "old" when you save it at 1 AM', () => {
+    const d: Draft = { ref: '1234567890123', amount: '500', fee: '10', name: '', number: '', txAt: at(12, 23, 0) } as unknown as Draft;
+    const w = reviewWarnings(d, { warnOld: true, bigLimit: 10000 }, at(13, 1, 0));
+    expect(w.find((x) => x.key === 'old')).toBeUndefined();
+    const w2 = reviewWarnings(d, { warnOld: true, bigLimit: 10000 }, at(13, 3, 0));
+    expect(w2.find((x) => x.key === 'old')).toBeDefined();
   });
 });

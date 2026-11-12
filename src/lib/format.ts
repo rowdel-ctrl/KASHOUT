@@ -11,8 +11,30 @@ export function timeOf(ms: number): string {
   return new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
+/**
+ * The business day starts at 2:00 AM, not midnight: a cash-out at 1 AM still belongs to the night before.
+ * Everything that says "today", "yesterday" or groups by day uses these.
+ */
+export const DAY_CUTOFF_HOUR = 2;
+const CUTOFF_MS = DAY_CUTOFF_HOUR * 3_600_000;
+
+/** When the business day that contains ms began (2:00 AM that day). */
+export function businessDayStart(ms: number): number {
+  const d = new Date(ms - CUTOFF_MS);
+  d.setHours(DAY_CUTOFF_HOUR, 0, 0, 0);
+  return d.getTime();
+}
+
+/** The next 2:00 AM after ms. */
+export function nextCutoff(ms: number): number {
+  const start = businessDayStart(ms);
+  const d = new Date(start);
+  d.setDate(d.getDate() + 1);
+  return d.getTime();
+}
+
 export function dayKey(ms: number): string {
-  const d = new Date(ms);
+  const d = new Date(ms - CUTOFF_MS);
   const p = (x: number) => String(x).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }

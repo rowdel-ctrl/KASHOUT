@@ -28,7 +28,7 @@ const BANDS: { value: AmountBand; label: string }[] = [
 ];
 
 export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Period; initialStatus?: StatusFilter }) {
-  const { records, go, alertTopic, toast, markPaid, t, settings } = useApp();
+  const { records, today, go, alertTopic, toast, markPaid, t, settings } = useApp();
   const tl = settings.lang === 'tl';
   const wide = useWide();
   const [f, setF] = useState<Filters>({ ...DEFAULT_FILTERS, period: initialPeriod ?? 'today', status: initialStatus ?? 'all' });
@@ -38,14 +38,14 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
 
   const q = useDeferredValue(f.q.trim());
   const searching = q.length > 0;
-  const shown = useMemo(() => applyFilters(records, { ...f, q }), [records, f.period, f.from, f.to, f.amount, f.staff, f.status, q]);
+  const shown = useMemo(() => applyFilters(records, { ...f, q }), [records, today, f.period, f.from, f.to, f.amount, f.staff, f.status, q]);
   const pendingAll = useMemo(() => records.filter(isPending), [records]);
   const sum = useMemo(() => summarize(shown), [shown]);
   const labelEn = searching ? 'Search results' : periodLabel(f);
   const label = t(labelEn);
   const pendingView = f.status === 'pending';
   // Grouped by day, except search results, which are ordered by how well they match.
-  const groups = useMemo(() => (searching ? [] : groupByDay(shown.slice(0, limit), Date.now(), pendingView)), [shown, limit, searching, pendingView]);
+  const groups = useMemo(() => (searching ? [] : groupByDay(shown.slice(0, limit), Date.now(), pendingView)), [shown, today, limit, searching, pendingView]);
   const maxN = Math.max(1, ...sum.people.map((p) => p.n));
   const sel = wide ? (shown.find((r) => r.id === selected) ?? shown[0] ?? null) : null;
   const filters = activeFilterCount(f);

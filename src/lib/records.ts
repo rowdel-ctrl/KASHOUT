@@ -1,4 +1,4 @@
-import { dayKey, formatRef, shortDate } from './format';
+import { businessDayStart, DAY_CUTOFF_HOUR, dayKey, formatRef, shortDate } from './format';
 import type { AmountBand, CashRecord, Filters, Period } from './types';
 
 const DAY = 86_400_000;
@@ -12,9 +12,13 @@ export const LATE_MS = 2 * 3_600_000;
 /** When the cash went out: the time it was marked paid, or when it was saved. Pending records use the save time. */
 export const whenOf = (r: CashRecord): number => (isPending(r) ? r.savedAt : (r.paidAt ?? r.savedAt));
 
-function startOfDay(ms: number): number {
-  const d = new Date(ms);
-  d.setHours(0, 0, 0, 0);
+/** Start of the business day (2:00 AM) that contains ms. */
+const startOfDay = businessDayStart;
+
+/** The business day that starts on a calendar date typed as YYYY-MM-DD: that date at 2:00 AM. */
+function dateStart(day: string): number {
+  const d = new Date(`${day}T00:00:00`);
+  d.setHours(DAY_CUTOFF_HOUR, 0, 0, 0);
   return d.getTime();
 }
 
@@ -26,8 +30,8 @@ export function periodRange(f: Pick<Filters, 'period' | 'from' | 'to'>, now: num
     case 'yesterday': return { from: today - DAY, to: today };
     case 'week': return { from: today - 6 * DAY, to: today + DAY };
     case 'custom': {
-      const from = f.from ? startOfDay(new Date(`${f.from}T00:00:00`).getTime()) : null;
-      const to = f.to ? startOfDay(new Date(`${f.to}T00:00:00`).getTime()) + DAY : null;
+      const from = f.from ? dateStart(f.from) : null;
+      const to = f.to ? dateStart(f.to) + DAY : null;
       return { from, to };
     }
     default: return { from: null, to: null };

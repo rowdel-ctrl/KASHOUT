@@ -1,3 +1,4 @@
+import { businessDayStart } from '../lib/format';
 import type { AppUser, CashRecord, FeeTier, NewRecord } from '../lib/types';
 import type { DataApi, RecordsUpdate } from './api';
 
@@ -97,7 +98,7 @@ export function createMemoryApi(): DataApi {
 
 function seed(): CashRecord[] {
   const now = Date.now();
-  const startOfToday = new Date(now).setHours(0, 0, 0, 0);
+  const startOfToday = businessDayStart(now);
   // Sample records from earlier today (always in the past), and two from yesterday.
   const ago = (mins: number) => Math.max(startOfToday + 60_000, now - mins * 60_000);
   const yesterday = (h: number, m: number) => {
