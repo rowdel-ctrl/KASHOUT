@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { extractRef, parseReceipt } from '../src/lib/parse';
+import { extractRef, extractSource, parseReceipt } from '../src/lib/parse';
+import { refKind } from '../src/lib/format';
 
 // All numbers and names below are made up.
 
@@ -229,5 +230,54 @@ describe('a date the text reader got a little wrong', () => {
   });
   it('a day that does not exist is refused', () => {
     expect(parseReceipt('0ctober 45, 2026 O5.39 PM').txAt).toBeNull();
+  });
+});
+
+const INBOX_BANK = `GCash Funds Received
+October 28, 2026 08:05 PM
+You have received 100.00 of GCash
+from MariBank with account ending
+in 5034. Your new balance is 317.63
+10-28-26 08:04 PM. Ref. No.
+20261028LAUIPHM2XXXB000000609658881.
+Use now to buy load, purchase items, send
+money, pay bills, and a lot more!`;
+
+describe('money from another bank or wallet (InstaPay)', () => {
+  it('reads a long reference that starts with the date', () => {
+    const r = parseReceipt(INBOX_BANK);
+    expect(r.ref).toBe('20261028LAUIPHM2XXXB000000609658881');
+    expect(r.refOk).toBe(true);
+    expect(r.amount).toBe(100);
+    expect(r.source).toBe('MariBank');
+    expect(r.name).toBe('');
+  });
+  it('uses the time inside the message (10-28-26 08:04 PM)', () => {
+    expect(parseReceipt(INBOX_BANK).txAt).toBe(new Date(2026, 9, 28, 20, 4).getTime());
+  });
+  it('repairs a spoiled date at the start and a split reference', () => {
+    const r = parseReceipt('Received 50.00 of GCash from Maya. Ref. No. 2O26 1O28 LAUIPHM2XXXB\n000000609658881');
+    expect(r.ref).toBe('20261028LAUIPHM2XXXB000000609658881');
+    expect(r.source).toBe('Maya');
+  });
+  it('still reads a normal 13-digit GCash reference and calls it GCash', () => {
+    const r = parseReceipt(PHOTO);
+    expect(r.refOk).toBe(true);
+    expect(r.source).toBe('GCash');
+  });
+  it('names the wallet or bank', () => {
+    expect(extractSource('You have sent P310.00 of GCash to MariBank account ending in 3562.')).toBe('MariBank');
+    expect(extractSource('received 20.00 of GCash from GoTyme Bank with account')).toBe('GoTyme');
+    expect(extractSource('Received GCash from BDO with account ending in 1234')).toBe('BDO');
+    expect(extractSource('Received GCash from PayMaya')).toBe('Maya');
+    expect(extractSource('received 20.00 of GCash from MAYA R. +63 9●●●●●●4822')).toBe('GCash');
+    expect(extractSource('Sent via GCash')).toBe('GCash');
+  });
+  it('checks the kind of reference', () => {
+    expect(refKind('9047022665601')).toBe('gcash');
+    expect(refKind('20261028LAUIPHM2XXXB000000609658881')).toBe('bank');
+    expect(refKind('123456')).toBe(null);
+    expect(refKind('ABCDEFGHIJKLMNOPQRST')).toBe(null);
+    expect(refKind('20263028LAUIPHM2XXXB000000609658881')).toBe(null);
   });
 });

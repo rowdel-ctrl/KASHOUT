@@ -1,4 +1,4 @@
-import { dayKey, parseMoney, peso, shortDate } from './format';
+import { dayKey, isValidRef, parseMoney, peso, shortDate } from './format';
 import type { Draft, Settings } from './types';
 
 export interface ReviewWarning {
@@ -21,6 +21,6 @@ export function reviewWarnings(d: Draft, s: Pick<Settings, 'warnOld' | 'bigLimit
     else if (dayKey(d.txAt) !== dayKey(now) && now - d.txAt >= 0) w.push({ key: 'old', text: `This receipt is from ${shortDate(d.txAt)}.`, tpl: 'This receipt is from {date}.', args: { date: shortDate(d.txAt) } });
   }
   if (s.bigLimit > 0 && amount > s.bigLimit) w.push({ key: 'big', text: `${peso(amount)} is a big amount.`, tpl: '{amount} is a big amount.', args: { amount: peso(amount) } });
-  if (!/^\d{13}$/.test(refDigits)) w.push({ key: 'ref', text: 'The reference number is not 13 digits.', tpl: 'The reference number is not 13 digits.' });
+  if (!isValidRef(refDigits)) w.push({ key: 'ref', text: 'The reference number is not 13 digits.', tpl: 'The reference number is not 13 digits.' });
   return w;
 }

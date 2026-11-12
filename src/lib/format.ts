@@ -52,6 +52,23 @@ export function parseMoney(s: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** A real calendar date at the start of a bank-transfer reference: 20261028. */
+const DATE_PREFIX = /^20\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])/;
+
+/**
+ * Which kind of reference this is.
+ * "gcash": exactly 13 digits. "bank": a transfer from another bank or wallet (InstaPay),
+ * 16 to 40 letters and digits that start with the date, like 20261028LAUIPHM2XXXB000000609658881.
+ */
+export function refKind(ref: string): 'gcash' | 'bank' | null {
+  const d = ref.replace(/\s+/g, '');
+  if (/^\d{13}$/.test(d)) return 'gcash';
+  if (/^[A-Za-z0-9]{16,40}$/.test(d) && /[A-Za-z]/.test(d) && DATE_PREFIX.test(d)) return 'bank';
+  return null;
+}
+
+export const isValidRef = (ref: string): boolean => refKind(ref) !== null;
+
 /** 13-digit references are shown in groups of 4, 4 and 5 so they are easy to compare: 0046 2760 76549. */
 export function formatRef(ref: string): string {
   const d = ref.replace(/\s+/g, '');

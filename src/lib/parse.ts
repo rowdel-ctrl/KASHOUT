@@ -3,6 +3,8 @@
  * Handles: inbox "Express Send", inbox "Bank Transfer Status",
  * "Transaction Details" screen, and photos of another phone ("Sent via GCash").
  */
+import { refKind } from './format';
+
 export interface ParsedReceipt {
   ref: string;
   /** True only when the reference is exactly 13 digits. */
@@ -11,6 +13,8 @@ export interface ParsedReceipt {
   txAt: number | null;
   name: string;
   number: string;
+  /** Where the money came from: "GCash" or the other wallet or bank, like "MariBank". */
+  source: string;
 }
 
 const MONTHS: Record<string, number> = {
@@ -22,6 +26,31 @@ function cleanDigits(s: string): string {
   return s.replace(/[Oo]/g, '0').replace(/[Il|]/g, '1').replace(/\s+/g, '');
 }
 
+/**
+ * A reference from another bank or wallet (InstaPay): the date, then letters and digits, like
+ * 20261028LAUIPHM2XXXB000000609658881. The reader may split it with spaces or a line break, or spoil
+ * the date digits (O for 0), so the pieces are joined and the date part is repaired before checking.
+ */
+function bankRef(rest: string): string {
+  const chunks: string[] = [];
+  const re = /\s*([A-Za-z0-9]+)/y;
+  let pos = 0;
+  while (chunks.length < 4) {
+    re.lastIndex = pos;
+    const c = re.exec(rest);
+    if (!c) break;
+    chunks.push(c[1]);
+    pos = re.lastIndex;
+  }
+  for (let k = chunks.length; k >= 1; k--) {
+    const joined = chunks.slice(0, k).join('').toUpperCase();
+    if (joined.length < 16 || joined.length > 40) continue;
+    const fixed = joined.slice(0, 8).replace(/O/g, '0').replace(/[IL]/g, '1') + joined.slice(8);
+    if (refKind(fixed) === 'bank') return fixed;
+  }
+  return '';
+}
+
 export function extractRef(text: string): { ref: string; ok: boolean } {
   let candidate = '';
 
@@ -30,6 +59,8 @@ export function extractRef(text: string): { ref: string; ok: boolean } {
   let m: RegExpExecArray | null;
   while ((m = label.exec(text))) {
     const rest = text.slice(m.index + m[0].length);
+    const bank = bankRef(rest);
+    if (bank) return { ref: bank, ok: true };
     const tokens: string[] = [];
     let pos = 0;
     while (tokens.length < 4) {
@@ -97,6 +128,11 @@ export function extractDateTime(text: string, now: number = Date.now()): number 
     const day = new Date(now);
     if (rel[1].toLowerCase() === 'yesterday') day.setDate(day.getDate() - 1);
     return toMs(day.getFullYear(), day.getMonth(), day.getDate(), +rel[2], +rel[3], rel[4]);
+  }
+  // 10-28-26 08:04 PM   (inside a "GCash Funds Received" message: the real time of the transfer)
+  const us = /(?<!\d)(\d{1,2})-(\d{1,2})-(\d{2})\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i.exec(text);
+  if (us && +us[1] >= 1 && +us[1] <= 12 && +us[2] >= 1 && +us[2] <= 31 && +us[4] >= 1 && +us[4] <= 12 && +us[5] <= 59) {
+    return toMs(2000 + +us[3], +us[1] - 1, +us[2], +us[4], +us[5], us[6]);
   }
   // Nov 2, 2026 4:39 PM   |   November 08, 2026 1:23 PM
   let m = /([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i.exec(text);
@@ -232,6 +268,44 @@ export function extractName(text: string, phoneIndex: number, phoneEnd: number =
   return '';
 }
 
+/** Other wallets and banks a transfer can come from. The first spelling is the name that is shown. */
+const SOURCES: Array<[string, RegExp]> = [
+  ['MariBank', /mari\s?bank/i],
+  ['Maya', /pay\s?maya|\bmaya\b/i],
+  ['GoTyme', /go\s?tyme/i],
+  ['SeaBank', /sea\s?bank/i],
+  ['GrabPay', /grab\s?pay/i],
+  ['ShopeePay', /shopee\s?pay/i],
+  ['Coins.ph', /coins\.?\s?ph/i],
+  ['BDO', /\bbdo\b/i],
+  ['BPI', /\bbpi\b/i],
+  ['UnionBank', /union\s?bank/i],
+  ['Metrobank', /metro\s?bank/i],
+  ['Landbank', /land\s?bank/i],
+  ['Security Bank', /security\s?bank/i],
+  ['PNB', /\bpnb\b/i],
+  ['RCBC', /\brcbc\b/i],
+  ['CIMB', /\bcimb\b/i],
+  ['Tonik', /\btonik\b/i],
+  ['UNO', /\buno\s?digital|\buno\s?bank/i],
+  ['Komo', /\bkomo\b/i],
+];
+/** Brands that are safe to find anywhere in the text. A short or common word needs "from" / "to" in front. */
+const SAFE = new Set(['MariBank', 'GoTyme', 'SeaBank', 'GrabPay', 'ShopeePay', 'Coins.ph', 'UnionBank', 'Metrobank', 'Landbank', 'Security Bank']);
+
+export function extractSource(text: string): string {
+  // "from MariBank with account ending...", "to BDO account..." : the word after from / to / via.
+  const lead = /\b(?:from|to|via|thru|through)\s+([A-Za-z0-9.]+(?:\s[A-Za-z]+)?)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = lead.exec(text))) {
+    // "from MAYA R. +63 9..." is a person called Maya, not the wallet.
+    const personLike = /^maya\s+[A-Za-z]$/i.test(m[1]) || /^\s*[.,]?\s*(?:\+|[●•*]|0?9\d)/.test(text.slice(m.index + m[0].length, m.index + m[0].length + 8));
+    for (const [name, re] of SOURCES) if (re.test(m[1]) && !(name === 'Maya' && personLike)) return name;
+  }
+  for (const [name, re] of SOURCES) if (SAFE.has(name) && re.test(text)) return name;
+  return 'GCash';
+}
+
 export function parseReceipt(text: string, now: number = Date.now()): ParsedReceipt {
   const { ref, ok } = extractRef(text);
   const phone = extractPhone(text);
@@ -242,5 +316,6 @@ export function parseReceipt(text: string, now: number = Date.now()): ParsedRece
     txAt: extractDateTime(text, now),
     name: extractName(text, phone.index, phone.end),
     number: phone.number,
+    source: extractSource(text),
   };
 }
