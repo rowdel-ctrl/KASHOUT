@@ -175,7 +175,7 @@ export function Review({ initial }: { initial: Draft }) {
 
       <div className="savebar">
         <div className="in">
-          {warns.length > 0 && (
+          {warns.length > 0 && canSave && (
             <WarnBar>
               <b>{t('Please check.')}</b> {warns.map((w) => t(w.tpl, w.args)).join(' ')}
             </WarnBar>
@@ -190,26 +190,26 @@ export function Review({ initial }: { initial: Draft }) {
               <button className={isPending(dupNow) ? 'btn btn-ghost' : 'btn btn-primary'} onClick={() => showSaved(dupNow)}>
                 {t('Show saved record')}
               </button>
+              <div className="sepgap" aria-hidden="true" />
               <button className="btn btn-danger" onClick={() => setDiffers(true)}>
                 {t('This is different. Save anyway')}
               </button>
             </>
           ) : (
             <>
-              <button className="btn btn-primary" disabled={!canSave} onClick={() => onSave('paid')}>
-                {t('Save · Paid')}
-              </button>
-              <button className="btn btn-pending" disabled={!canSave} onClick={() => onSave('pending')}>
-                {t('Save · Pending')}
-              </button>
-              <div className="muted small" style={{ textAlign: 'center', lineHeight: 1.35 }}>
-                {t('Pending keeps the receipt. Mark it Paid when you give the cash.')}
+              <div className={`saveas${canSave ? '' : ' need'}`} role={canSave ? undefined : 'status'}>
+                {canSave ? t('Save as') : t('Fill in the reference number and amount first.')}
               </div>
+              <button className="btn btn-primary two-line" disabled={!canSave} onClick={() => onSave('paid')}>
+                <b>{t('Save · Paid')}</b>
+                <small>{t('Cash given')}</small>
+              </button>
+              <button className="btn btn-pending two-line" disabled={!canSave} onClick={() => onSave('pending')}>
+                <b>{t('Save · Pending')}</b>
+                <small>{t('Cash not given yet')}</small>
+              </button>
             </>
           )}
-          <button className="btn btn-text" onClick={requestLeave}>
-            {t('Discard')}
-          </button>
         </div>
       </div>
 
