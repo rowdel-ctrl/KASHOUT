@@ -16,6 +16,7 @@ import { buzzSaved } from '../native/haptics';
 import { detectOwn, mergeOwn } from '../lib/identity';
 import { isNative } from '../native/platform';
 import { listenShared, type SharedItem } from '../native/share';
+import { fetchLatest, installedVersion, openDownload, type UpdateInfo } from '../native/update';
 import { draftFromPhoto, draftFromText } from './draft';
 import type { SyncState } from '../data/api';
 
@@ -50,6 +51,13 @@ interface Ctx {
   resumeDraft: () => void;
   /** A screen can ask to be told before Back leaves it. Return true when it handled Back. */
   setLeaveGuard: (fn: (() => boolean) | null) => void;
+  /** A newer app version is published. Null when this phone is up to date. */
+  update: UpdateInfo | null;
+  /** This phone's version, like "1.0.21". Empty in the browser. */
+  appVersion: string;
+  checkUpdate: (manual?: boolean) => Promise<'new' | 'latest' | 'error'>;
+  downloadUpdate: () => void;
+  laterUpdate: () => void;
   saveDraft: (d: Draft, allowDuplicate: boolean, status?: 'paid' | 'pending') => void;
   markPaid: (r: CashRecord) => void;
   undoSave: () => void;
@@ -85,6 +93,9 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
   const [undo, setUndo] = useState<UndoState | null>(null);
   const toastId = useRef(0);
   const [lastSaved, setLastSaved] = useState<LastSaved | null>(null);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [appVersion, setAppVersion] = useState('');
+  const lastUpdateCheck = useRef(0);
   const [unsaved, setUnsaved] = useState<StoredDraft | null>(null);
   const leaveGuard = useRef<(() => boolean) | null>(null);
   const undoTimer = useRef<number | undefined>(undefined);
@@ -283,6 +294,56 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
     const u = unsavedRef.current;
     if (u) setStack((s) => [...s, { name: 'review', draft: u.draft }]);
   }, []);
+  const checkUpdate = useCallback(async (manual = false): Promise<'new' | 'latest' | 'error'> => {
+    // Browser tests only: pretend a newer version exists.
+    const fake = !isNative ? (globalThis as { __fakeUpdate?: UpdateInfo }).__fakeUpdate : undefined;
+    if (fake) {
+      setUpdate(fake);
+      return 'new';
+    }
+    const mine = await installedVersion();
+    if (!mine) return 'latest';
+    setAppVersion(mine.version);
+    lastUpdateCheck.current = Date.now();
+    try {
+      const latest = await fetchLatest();
+      if (!latest || latest.build <= mine.build) {
+        setUpdate(null);
+        return 'latest';
+      }
+      if (manual || latest.build > settingsRef.current.skipBuild) setUpdate(latest);
+      return 'new';
+    } catch {
+      return 'error';
+    }
+  }, []);
+  const updateNow = useRef<UpdateInfo | null>(null);
+  updateNow.current = update;
+  const laterUpdate = useCallback(() => {
+    const u = updateNow.current;
+    if (u) updateRef.current({ skipBuild: u.build });
+    setUpdate(null);
+  }, []);
+  const downloadUpdate = useCallback(() => {
+    if (updateNow.current) void openDownload(updateNow.current.url);
+  }, []);
+
+  // Look for a newer version a few seconds after opening, and again when the app comes back after 6 hours.
+  useEffect(() => {
+    void installedVersion().then((v) => v && setAppVersion(v.version));
+    const first = window.setTimeout(() => void checkUpdate(false), 4000);
+    let handle: { remove: () => Promise<void> } | undefined;
+    if (isNative) {
+      void CapApp.addListener('appStateChange', ({ isActive }) => {
+        if (isActive && Date.now() - lastUpdateCheck.current > 6 * 3_600_000) void checkUpdate(false);
+      }).then((h) => (handle = h));
+    }
+    return () => {
+      window.clearTimeout(first);
+      void handle?.remove();
+    };
+  }, [checkUpdate]);
+
   const setLeaveGuard = useCallback((fn: (() => boolean) | null) => {
     leaveGuard.current = fn;
   }, []);
@@ -308,7 +369,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
 
   return (
     <AppCtx.Provider
-      value={{ user, records, syncLabel, alertTopic, settings, updateSettings, fees, route, go, replace, back, tab, toast, undo, lastSaved, editRecord, t, unsaved, keepDraft, dropDraft, resumeDraft, setLeaveGuard, saveDraft, markPaid, undoSave, signOut }}
+      value={{ user, records, syncLabel, alertTopic, settings, updateSettings, fees, route, go, replace, back, tab, toast, undo, lastSaved, editRecord, t, unsaved, keepDraft, dropDraft, resumeDraft, setLeaveGuard, update, appVersion, checkUpdate, downloadUpdate, laterUpdate, saveDraft, markPaid, undoSave, signOut }}
     >
       {children({ route, toasts, denied })}
     </AppCtx.Provider>

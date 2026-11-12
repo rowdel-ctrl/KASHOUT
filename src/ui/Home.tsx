@@ -6,7 +6,7 @@ import { NavBar, RecRow } from './components';
 import { useApp } from './context';
 
 export function Home() {
-  const { user, records, syncLabel, go, tab, undo, undoSave, markPaid, t, settings, unsaved, resumeDraft, dropDraft, keepDraft, toast } = useApp();
+  const { user, records, syncLabel, go, tab, undo, undoSave, markPaid, t, settings, unsaved, resumeDraft, dropDraft, keepDraft, toast, update, downloadUpdate, laterUpdate } = useApp();
   const tl = settings.lang === 'tl';
   // Paid today: cash that went out today. Pending records are counted apart.
   const day = summarize(applyFilters(records, { ...DEFAULT_FILTERS, period: 'today' }));
@@ -41,6 +41,21 @@ export function Home() {
               <b>{t('Record a cash-out')}</b>
               <span>{t('Take a photo or pick a screenshot')}</span>
             </button>
+            {update && (
+              <div className="updatecard" role="status">
+                <b>{t('New version available')}</b>
+                <span>{t('Version {version} is ready. Download it to get the latest fixes.', { version: update.version })}</span>
+                <small>{t('After the download, tap the file to install. Your records stay.')}</small>
+                <div className="two">
+                  <button className="btn btn-primary" onClick={downloadUpdate}>
+                    {t('Download')}
+                  </button>
+                  <button className="btn btn-ghost" onClick={laterUpdate}>
+                    {t('Later')}
+                  </button>
+                </div>
+              </div>
+            )}
             {unsaved && (
               <div className="draftcard" role="status">
                 <b>{t('You have a scan that is not saved')}</b>

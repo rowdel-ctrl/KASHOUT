@@ -13,6 +13,7 @@ public class MainActivity extends BridgeActivity {
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         // Must be registered before the bridge starts.
         registerPlugin(SharedReceiptPlugin.class);
+        registerPlugin(AppBarsPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

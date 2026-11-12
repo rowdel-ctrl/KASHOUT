@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../data';
 import type { AppUser, Settings } from '../lib/types';
+import { isDarkNow, syncBars } from '../native/bars';
 import { loadSettings, saveSettings } from '../native/storage';
 import { Icon } from './icons';
 import { translate, type T } from '../lib/i18n';
@@ -29,6 +30,20 @@ export default function App() {
     document.documentElement.style.fontSize = `${16 * SCALE[settings.textSize]}px`;
     document.documentElement.dataset.theme = settings.theme;
   }, [settings?.textSize, settings?.theme]);
+
+  // The status bar and navigation bar follow the app's colours, with icons that can be read.
+  useEffect(() => {
+    if (!settings) return;
+    const apply = () => window.setTimeout(() => void syncBars(isDarkNow()), 60);
+    apply();
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', apply);
+    window.addEventListener('resize', apply);
+    return () => {
+      mq.removeEventListener('change', apply);
+      window.removeEventListener('resize', apply);
+    };
+  }, [settings?.theme]);
 
   const updateSettings = (patch: Partial<Settings>) =>
     setSettings((s) => {
@@ -65,6 +80,7 @@ export default function App() {
       <AppProvider user={user} settings={settings} updateSettings={updateSettings}>
         {({ route, toasts, denied }) => (
           <>
+            <ScanBars on={route.name === 'scan'} theme={settings.theme} />
             {denied ? <Denied email={user.email} /> : <Screen route={route} />}
             <div className="toasts" aria-live="polite">
               {toasts.map((t) => (
@@ -79,6 +95,15 @@ export default function App() {
       </AppProvider>
     </div>
   );
+}
+
+/** The camera screen is always dark, so the bars get light icons there. */
+function ScanBars({ on, theme }: { on: boolean; theme: string }) {
+  useEffect(() => {
+    if (on) void syncBars(true, '#14110D');
+    else window.setTimeout(() => void syncBars(isDarkNow()), 60);
+  }, [on, theme]);
+  return null;
 }
 
 function Screen({ route }: { route: ReturnType<typeof useApp>['route'] }) {

@@ -49,3 +49,32 @@ describe('nameForNumber', () => {
     expect(nameForNumber(records, '12')).toBe('');
   });
 });
+
+import { isNewer, parseRelease } from '../src/native/update';
+import { toHex } from '../src/native/bars';
+
+describe('new version check', () => {
+  const release = { tag_name: 'v1.0.22', html_url: 'https://github.com/x/y/releases/tag/v1.0.22', assets: [{ name: 'cashout-log.apk', browser_download_url: 'https://github.com/x/y/releases/download/v1.0.22/cashout-log.apk' }] };
+  it('reads the version, build and APK link', () => {
+    expect(parseRelease(release)).toEqual({ version: '1.0.22', build: 22, url: 'https://github.com/x/y/releases/download/v1.0.22/cashout-log.apk' });
+  });
+  it('falls back to the release page when there is no APK', () => {
+    expect(parseRelease({ ...release, assets: [] })?.url).toBe(release.html_url);
+  });
+  it('ignores answers that are not a Kashawt build', () => {
+    expect(parseRelease(null)).toBeNull();
+    expect(parseRelease({ tag_name: 'nightly' })).toBeNull();
+    expect(parseRelease({ tag_name: 'v1.0.9-private', html_url: 'https://x' })).toBeNull();
+    expect(parseRelease({ tag_name: 'v1.0.9', html_url: 'http://not-secure' })).toBeNull();
+  });
+  it('only a bigger build is newer', () => {
+    expect(isNewer(22, 21)).toBe(true);
+    expect(isNewer(21, 21)).toBe(false);
+    expect(isNewer(20, 21)).toBe(false);
+  });
+  it('turns a colour into hex for the system bars', () => {
+    expect(toHex('rgb(251, 247, 241)')).toBe('#FBF7F1');
+    expect(toHex('rgba(20, 17, 13, 1)')).toBe('#14110D');
+    expect(toHex('nonsense')).toBe('#FBF7F1');
+  });
+});

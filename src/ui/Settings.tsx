@@ -32,7 +32,8 @@ const LIMITS: { value: number; label: string }[] = [
 ];
 
 export function SettingsScreen() {
-  const { settings, updateSettings, go, toast, user, signOut, alertTopic, t } = useApp();
+  const { settings, updateSettings, go, toast, user, signOut, alertTopic, t, appVersion, checkUpdate, update, downloadUpdate } = useApp();
+  const [checking, setChecking] = useState(false);
   const [sheet, setSheet] = useState<'size' | 'theme' | 'limit' | 'lang' | null>(null);
 
   async function toggleReminder(on: boolean) {
@@ -156,6 +157,34 @@ export function SettingsScreen() {
             >
               {t('Send')}
             </button>
+          </div>
+        </div>
+
+        <div className="sec">{t('About')}</div>
+        <div className="card flush">
+          <div className="item">
+            <span className="grow">
+              {t('Version')}
+              <small>{appVersion ? appVersion : t('Demo')}</small>
+            </span>
+            {update ? (
+              <button className="chipbtn" onClick={downloadUpdate}>
+                {t('Download {version}', { version: update.version })}
+              </button>
+            ) : (
+              <button
+                className="chipbtn"
+                disabled={checking}
+                onClick={async () => {
+                  setChecking(true);
+                  const r = await checkUpdate(true);
+                  setChecking(false);
+                  toast(r === 'latest' ? t('You have the newest version') : r === 'new' ? t('A new version was found. See the green card on Home.') : t('Could not check for updates. Check your internet.'), r === 'error');
+                }}
+              >
+                {t('Check for updates')}
+              </button>
+            )}
           </div>
         </div>
 

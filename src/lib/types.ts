@@ -75,6 +75,8 @@ export interface Settings {
   autoCapture: boolean;
   /** App language. tl = Taglish. */
   lang: Lang;
+  /** The newest build the person chose to skip with "Later". */
+  skipBuild: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -89,6 +91,7 @@ export const DEFAULT_SETTINGS: Settings = {
   closingReminder: false,
   autoCapture: true,
   lang: 'tl',
+  skipBuild: 0,
 };
 
 export interface Draft {

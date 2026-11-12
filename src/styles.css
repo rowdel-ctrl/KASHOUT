@@ -571,3 +571,14 @@ html[data-theme='dark'] .draftcard { --blue-bg: #1B2A3D; --blue-line: #4A86D6; -
   .nav { height: calc(60px + var(--bottom)); padding-top: 4px; }
   .page.has-nav { padding-bottom: calc(60px + var(--bottom) + 20px); }
 }
+
+/* Under the status bar the page colour stays solid, so nothing shows through or scrolls behind it */
+body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: var(--top); background: var(--bg); z-index: 12; pointer-events: none; }
+body:has(.scan)::before, body:has(.viewer)::before { background: #14110D; }
+
+/* new version card on Home */
+.updatecard { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 22px; background: var(--green-soft); border: 2px solid var(--green); color: var(--green-text); animation: fade .2s ease; }
+.updatecard b { font-size: 17px; font-weight: 800; }
+.updatecard > span { font-size: 15px; font-weight: 700; }
+.updatecard small { font-size: 13px; font-weight: 700; opacity: .85; }
+.updatecard .btn { height: 48px; font-size: 16px; }

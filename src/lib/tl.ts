@@ -23,6 +23,18 @@ export const TL: Record<string, string> = {
   'This account is not allowed': 'Hindi pinapayagan ang account na ito',
   '{email} is not on the list. Ask the owner to add this email, then sign in again.': 'Wala sa listahan ang {email}. Sabihan ang owner na idagdag ito, tapos mag-sign in ulit.',
   'Sign out': 'Sign out',
+  'New version available': 'May bagong version',
+  'Version {version} is ready. Download it to get the latest fixes.': 'Handa na ang version {version}. I-download para makuha ang mga bagong ayos.',
+  'After the download, tap the file to install. Your records stay.': 'Pagkatapos mag-download, i-tap ang file para i-install. Hindi mawawala ang records mo.',
+  'Download': 'I-download',
+  'Later': 'Mamaya',
+  'About': 'Tungkol dito',
+  'Version': 'Version',
+  'Download {version}': 'I-download ang {version}',
+  'Check for updates': 'Tingnan kung may bago',
+  'You have the newest version': 'Pinakabago na ang version mo',
+  'A new version was found. See the green card on Home.': 'May bagong version. Tingnan ang green card sa Home.',
+  'Could not check for updates. Check your internet.': 'Hindi ma-check ang bagong version. I-check ang internet.',
   'Make sure a Google account is added in the phone Settings, and that this email was approved by the owner.': 'Siguraduhing may Google account sa Settings ng phone, at na-approve ng owner ang email na ito.',
 
   // Home
