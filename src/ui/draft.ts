@@ -36,12 +36,14 @@ function fromParsed(p: ParsedReceipt, ctx: DraftContext): Draft {
  * Reads a receipt picture and fills in a draft. `rawText` is empty when nothing could be read.
  * Pass `knownText` when the picture was already read, so it is not read twice.
  */
-export async function draftFromPhoto(photo: PickedPhoto, ctx: DraftContext, knownText?: string): Promise<Draft> {
-  const [text, thumb, sharp] = await Promise.all([
+export async function draftFromPhoto(photo: PickedPhoto, ctx: DraftContext, knownText?: string, sharedText?: string): Promise<Draft> {
+  const [read, thumb, sharp] = await Promise.all([
     knownText !== undefined ? Promise.resolve(knownText) : readText(photo).catch(() => ''),
     makeThumb(photo.webPath),
     makePhoto(photo.webPath),
   ]);
+  // The message text sent along with the picture is clean, so it goes first. The picture adds what the text lacks, like the date.
+  const text = [sharedText?.trim(), read].filter(Boolean).join('\n');
   const d: Draft = { ...fromParsed(parseReceipt(text), ctx), thumb, photo: sharp, photoUrl: photo.webPath, rawText: text };
   // The small grey date is the part the reader misses most. Use today, and say so, instead of leaving it empty.
   if (text && d.txAt == null) return { ...d, txAt: Date.now(), dateGuess: true };

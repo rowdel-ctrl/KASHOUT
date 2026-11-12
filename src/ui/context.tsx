@@ -260,7 +260,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
     return listenShared(async (item: SharedItem) => {
       try {
         const ctx = { fees: feesRef.current, settings: settingsRef.current };
-        const draft = item.photo ? await draftFromPhoto(item.photo, ctx) : await draftFromText(item.text ?? '', ctx);
+        const draft = item.photo ? await draftFromPhoto(item.photo, ctx, undefined, item.text) : await draftFromText(item.text ?? '', ctx);
         setStack([{ name: 'home' }, { name: 'review', draft }]);
       } catch {
         toast(tr('Could not open the shared receipt.'), true);

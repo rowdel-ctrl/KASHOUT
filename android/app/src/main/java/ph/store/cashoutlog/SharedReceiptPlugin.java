@@ -29,17 +29,24 @@ public class SharedReceiptPlugin extends Plugin {
 
         String type = intent.getType();
         Uri uri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri.class);
+        // Some apps hand the picture over in the clip instead of the usual place.
+        if (uri == null && intent.getClipData() != null && intent.getClipData().getItemCount() > 0) {
+            uri = intent.getClipData().getItemAt(0).getUri();
+        }
         String text = intent.getStringExtra(Intent.EXTRA_TEXT);
         boolean got = false;
 
-        if (uri != null && type != null && type.startsWith("image/")) {
+        // GCash sends a picture with the message. Some apps label the share as text even then,
+        // so look at what the file really is, not only at the label on the share.
+        if (uri != null && looksLikeImage(uri, type)) {
             String path = copyToCache(uri);
             if (path != null) {
                 sharedPath = path;
-                sharedText = null;
+                sharedText = (text != null && !text.trim().isEmpty()) ? text : null;
                 got = true;
             }
-        } else if (text != null && !text.trim().isEmpty()) {
+        }
+        if (!got && text != null && !text.trim().isEmpty()) {
             sharedText = text;
             sharedPath = null;
             got = true;
@@ -50,15 +57,23 @@ public class SharedReceiptPlugin extends Plugin {
         }
     }
 
+    private boolean looksLikeImage(Uri uri, String shareType) {
+        String real = null;
+        try {
+            real = getContext().getContentResolver().getType(uri);
+        } catch (Exception e) {
+            // unknown
+        }
+        if (real != null) return real.startsWith("image/");
+        return shareType == null || shareType.startsWith("image/") || shareType.equals("*/*");
+    }
+
     /** Returns what was shared, then forgets it. Empty if nothing is waiting. */
     @PluginMethod
     public void getShared(PluginCall call) {
         JSObject result = new JSObject();
-        if (sharedPath != null) {
-            result.put("path", "file://" + sharedPath);
-        } else if (sharedText != null) {
-            result.put("text", sharedText);
-        }
+        if (sharedPath != null) result.put("path", "file://" + sharedPath);
+        if (sharedText != null) result.put("text", sharedText);
         sharedPath = null;
         sharedText = null;
         call.resolve(result);

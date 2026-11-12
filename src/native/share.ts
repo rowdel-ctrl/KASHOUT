@@ -30,7 +30,8 @@ export function listenShared(cb: (item: SharedItem) => void): () => void {
   const check = async () => {
     const r = await Shared.getShared();
     if (!alive) return;
-    if (r.path) cb({ photo: { uri: r.path, webPath: Capacitor.convertFileSrc(r.path) } });
+    // A picture, with the message text when the other app sent both.
+    if (r.path) cb({ photo: { uri: r.path, webPath: Capacitor.convertFileSrc(r.path) }, text: r.text });
     else if (r.text) cb({ text: r.text });
   };
   void check().catch(() => {});
