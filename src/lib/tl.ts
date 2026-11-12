@@ -23,6 +23,7 @@ export const TL: Record<string, string> = {
   'This account is not allowed': 'Hindi pinapayagan ang account na ito',
   '{email} is not on the list. Ask the owner to add this email, then sign in again.': 'Wala sa listahan ang {email}. Sabihan ang owner na idagdag ito, tapos mag-sign in ulit.',
   'Sign out': 'Sign out',
+  'Make sure a Google account is added in the phone Settings, and that this email was approved by the owner.': 'Siguraduhing may Google account sa Settings ng phone, at na-approve ng owner ang email na ito.',
 
   // Home
   'Hi, {name}': 'Hi, {name}',

@@ -98,6 +98,8 @@ function Screen({ route }: { route: ReturnType<typeof useApp>['route'] }) {
 
 function Login({ t }: { t: T }) {
   const [err, setErr] = useState('');
+  // The phone's own reason (short), so a failed sign-in can be understood and fixed.
+  const [why, setWhy] = useState('');
   const [busy, setBusy] = useState(false);
   return (
     <div className="center login">
@@ -112,11 +114,16 @@ function Login({ t }: { t: T }) {
         onClick={async () => {
           setBusy(true);
           setErr('');
+          setWhy('');
           try {
             await api.signIn();
           } catch (e) {
             const m = String((e as Error)?.message ?? e);
-            if (!/cancel|closed|dismiss/i.test(m)) setErr(t('Sign-in did not work. Check your internet and try again.'));
+            const code = (e as { code?: string })?.code;
+            if (!/cancel|closed|dismiss/i.test(m)) {
+              setErr(t('Sign-in did not work. Check your internet and try again.'));
+              setWhy([code, m].filter(Boolean).join(' · ').slice(0, 180));
+            }
           }
           setBusy(false);
         }}
@@ -135,6 +142,8 @@ function Login({ t }: { t: T }) {
       {err && (
         <div className="err-text" role="alert">
           {err}
+          {why && <small>{why}</small>}
+          <small>{t('Make sure a Google account is added in the phone Settings, and that this email was approved by the owner.')}</small>
         </div>
       )}
       {api.mode === 'demo' && <div className="notice">{t('Demo mode. This is sample data only. Nothing is saved or shared.')}</div>}
