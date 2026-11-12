@@ -664,3 +664,11 @@ h1, h2, h3, .h1, .topbar h1, .sheet h2, .stat b, .rec .ref, .rec .amt, .bigref, 
 .batchbar .btn-text { height: 40px; }
 .skipitem .acts .btn { height: 42px; }
 .dcard .tag.wallet { height: 34px; }
+
+/* Home totals: green Cash-out, gold Charge */
+.tile.main { background: var(--green); color: var(--on-green); box-shadow: 0 10px 22px var(--green-shadow); }
+.tile.main small { color: #CFEBD9; }
+.tile.main b { color: #fff; }
+.tile:not(.main) { background: #F6C453; color: #3A2A00; box-shadow: 0 8px 18px rgba(224, 162, 42, .32); }
+.tile:not(.main) small { color: #5C4300; }
+.tile:not(.main) b { color: #3A2A00; }
