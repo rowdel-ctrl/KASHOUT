@@ -444,7 +444,7 @@ mark { background: var(--warn-bg); color: inherit; border-radius: 4px; padding: 
 
 /* Mark paid on a row */
 .rec .recmain { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 0; border: 0; background: none; text-align: left; color: inherit; }
-.rec .markpaid { margin-top: 6px; min-height: 40px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--green); color: var(--on-green); font-size: 14px; font-weight: 800; white-space: nowrap; }
+.rec .markpaid { margin-top: 0; min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--green); color: var(--on-green); font-size: 14px; font-weight: 800; white-space: nowrap; }
 .rec .markpaid:active { transform: scale(.96); }
 
 /* Edit and History */
@@ -501,3 +501,35 @@ html[data-theme='dark'] .draftcard { --blue-bg: #1B2A3D; --blue-line: #4A86D6; -
 .tiles small { display: block; font-size: 13px; font-weight: 700; color: var(--muted); }
 .tiles .p small { color: var(--warn-text); }
 .tiles b { font-size: 22px; font-weight: 800; }
+
+/* Rows must never let the amount run over the reference number, even at the biggest text size */
+.rec .mid { min-width: 0; }
+.rec .ref { white-space: normal; }
+.rec .right { flex: none; }
+.rec.quick { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'main amt' 'main btn'; column-gap: 12px; row-gap: 6px; align-items: center; }
+.rec.quick .recmain { grid-area: main; }
+.rec.quick .right { grid-area: amt; }
+.rec.quick .markpaid { grid-area: btn; justify-self: end; margin-top: 0; }
+@media (max-width: 380px) {
+  .rec.quick { grid-template-areas: 'main amt' 'btn btn'; }
+  .rec.quick .markpaid { justify-self: stretch; }
+}
+
+/* Tabs: tighter, and they may scroll sideways as a last resort, but the page never does */
+.rtabs { overflow-x: auto; scrollbar-width: none; gap: 0; }
+.rtabs::-webkit-scrollbar { display: none; }
+.rtabs button { padding: 0 8px; gap: 6px; font-size: 14.5px; flex: 0 0 auto; }
+.rtabs b { min-width: 20px; height: 20px; padding: 0 6px; font-size: 12px; }
+@media (max-width: 380px) { .rtabs { justify-content: space-between; } .rtabs button { padding: 0 5px; } }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); }
+.tiles > div { min-width: 0; }
+.tiles b { display: block; overflow-wrap: anywhere; }
+
+/* Tabs: the count sits on the corner of its label, so three tabs fit even at the largest text size */
+.rtabs button { position: relative; }
+.rtabs button b { position: absolute; top: 3px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; font-size: 11px; }
+.rtabs button:has(b) { padding-right: 16px; }
+@media (max-width: 380px) { .rtabs button { font-size: 13.5px; padding: 0 4px; } .rtabs button:has(b) { padding-right: 14px; } }
+
+/* The big Home button grows with its text instead of cutting it */
+.hero { min-height: fit-content; padding: 22px 16px; }

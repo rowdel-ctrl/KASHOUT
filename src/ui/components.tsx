@@ -141,21 +141,17 @@ export function RecRow({ r, onClick, fresh, selected, q, onMarkPaid }: { r: Cash
       </span>
     </>
   );
-  const right = (
-    <span className="right">
+  const amountBlock = (
+    <>
       <div className="amt">{field === 'amount' ? <mark>{amountText}</mark> : amountText}</div>
       {pending ? (
         <div className={`tag${late ? ' late' : ''}`}>{late ? `${waitText(waited, tl)} · ${t('late')}` : waitText(waited, tl)}</div>
       ) : (
         <div className="when">{timeOf(whenOf(r))}</div>
       )}
-      {quick && (
-        <button className="markpaid" aria-label={t('Mark {amount} as paid', { amount: peso2(r.amount) })} onClick={onMarkPaid}>
-          {t('Mark paid')}
-        </button>
-      )}
-    </span>
+    </>
   );
+  const right = <span className="right">{amountBlock}</span>;
   const inner = (
     <>
       {main}
@@ -166,11 +162,14 @@ export function RecRow({ r, onClick, fresh, selected, q, onMarkPaid }: { r: Cash
   // A row with its own Mark paid button cannot be one big button, so only the left part is.
   if (quick) {
     return (
-      <div className={cls}>
+      <div className={`${cls} quick`}>
         <button className="recmain" onClick={onClick} aria-pressed={selected}>
           {main}
         </button>
         {right}
+        <button className="markpaid" aria-label={t('Mark {amount} as paid', { amount: peso2(r.amount) })} onClick={onMarkPaid}>
+          {t('Mark paid')}
+        </button>
       </div>
     );
   }
