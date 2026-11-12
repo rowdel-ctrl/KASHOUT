@@ -30,9 +30,16 @@ function fromParsed(p: ParsedReceipt, ctx: DraftContext): Draft {
   };
 }
 
-/** Reads a receipt picture and fills in a draft. `rawText` is empty when nothing could be read. */
-export async function draftFromPhoto(photo: PickedPhoto, ctx: DraftContext): Promise<Draft> {
-  const [text, thumb, sharp] = await Promise.all([readText(photo).catch(() => ''), makeThumb(photo.webPath), makePhoto(photo.webPath)]);
+/**
+ * Reads a receipt picture and fills in a draft. `rawText` is empty when nothing could be read.
+ * Pass `knownText` when the picture was already read, so it is not read twice.
+ */
+export async function draftFromPhoto(photo: PickedPhoto, ctx: DraftContext, knownText?: string): Promise<Draft> {
+  const [text, thumb, sharp] = await Promise.all([
+    knownText !== undefined ? Promise.resolve(knownText) : readText(photo).catch(() => ''),
+    makeThumb(photo.webPath),
+    makePhoto(photo.webPath),
+  ]);
   return { ...fromParsed(parseReceipt(text), ctx), thumb, photo: sharp, photoUrl: photo.webPath, rawText: text };
 }
 

@@ -12,10 +12,10 @@ import { useApp } from './context';
 export { emptyDraft };
 
 /** What the live camera tells the person right now. */
-type Look = { kind: 'nothing' | 'moving' | 'steady' | 'noref' } | { kind: 'counting'; count: number; refSeen: boolean };
+type Look = { kind: 'nothing' | 'moving' | 'steady' | 'noref' | 'found' };
 
-const COUNT_STEP_MS = 500;
-const RECHECK_MS = 1600;
+/** Still for this long, then the Ref No. is checked. Short on purpose: it must feel instant. */
+const RECHECK_MS = 900;
 
 export function Scan() {
   const { fees, replace, back, toast, settings } = useApp();
@@ -23,12 +23,13 @@ export function Scan() {
   const [busy, setBusy] = useState(false);
   const [look, setLook] = useState<Look>({ kind: 'nothing' });
 
-  async function handle(get: () => Promise<PickedPhoto | null>) {
+  /** `knownText`: the picture was already read (auto capture), so it is not read again. */
+  async function handle(get: () => Promise<PickedPhoto | null>, knownText?: string) {
     try {
       const photo = await get();
       if (!photo) return;
       setBusy(true);
-      const draft = await draftFromPhoto(photo, { fees, settings });
+      const draft = await draftFromPhoto(photo, { fees, settings }, knownText);
       if (!draft.rawText) toast('Could not read the photo. Please type the details.', true);
       replace({ name: 'review', draft });
     } catch (e) {
@@ -43,57 +44,26 @@ export function Scan() {
   const shoot = () => (cam.state === 'ready' ? handle(() => cam.capture()) : handle(takePhoto));
 
   // Take the photo by itself when the receipt is held still. Nothing is saved: Check and save opens next.
+  // On the phone the Ref No. is read first, and that same picture is used, so it is read only once.
   const auto = settings.autoCapture && cam.state === 'ready' && !busy;
   const grab = cam.grab;
   const capture = cam.capture;
   useEffect(() => {
     if (!auto) return;
     const tracker = new SteadyTracker();
-    let phase: 'idle' | 'checking' | 'counting' = 'idle';
-    let countStart = 0;
+    let checking = false;
     let lastCheck = 0;
-    let refSeen = false;
     let prev: Uint8Array | null = null;
     let stopped = false;
-    const show = (next: Look) =>
-      setLook((l) => (l.kind === next.kind && (l.kind !== 'counting' || (next.kind === 'counting' && l.count === next.count)) ? l : next));
-
-    // Native: make sure the Ref No. can really be read before counting down.
-    async function refReadable(): Promise<boolean> {
-      const shot = await capture();
-      if (!shot) return false;
-      try {
-        return parseReceipt(await readText(shot)).refOk;
-      } catch {
-        return false;
-      } finally {
-        URL.revokeObjectURL(shot.webPath);
-      }
-    }
+    const show = (next: Look) => setLook((l) => (l.kind === next.kind ? l : next));
 
     const id = window.setInterval(async () => {
-      if (stopped) return;
+      if (stopped || checking) return;
       const f = grab();
       if (!f) return;
       const m = prev && prev.length === f.gray.length ? motion(prev, f.gray) : 255;
       prev = f.gray;
       const r = tracker.push({ motion: m, edge: edgeEnergy(f.gray, f.w, f.h) }, Date.now());
-      if (phase === 'checking') return;
-      if (phase === 'counting') {
-        if (!r.steady) {
-          phase = 'idle';
-          show({ kind: r.kind === 'nothing' ? 'nothing' : 'moving' });
-          return;
-        }
-        const n = 2 - Math.floor((Date.now() - countStart) / COUNT_STEP_MS);
-        if (n <= 0) {
-          phase = 'checking';
-          void handleRef.current(() => capture());
-          return;
-        }
-        show({ kind: 'counting', count: n, refSeen });
-        return;
-      }
       if (!r.steady) {
         show({ kind: r.kind === 'nothing' ? 'nothing' : 'moving' });
         return;
@@ -101,39 +71,45 @@ export function Scan() {
       const now = Date.now();
       if (now - lastCheck < RECHECK_MS) return; // keep showing the last hint
       lastCheck = now;
-      if (isNative) {
-        phase = 'checking';
-        show({ kind: 'steady' });
-        const ok = await refReadable();
-        if (stopped) return;
-        if (ok) {
-          phase = 'counting';
-          refSeen = true;
-          countStart = Date.now();
-          show({ kind: 'counting', count: 2, refSeen });
-        } else {
-          phase = 'idle';
-          show({ kind: 'noref' });
-        }
-      } else {
-        phase = 'counting';
-        refSeen = false;
-        countStart = now;
-        show({ kind: 'counting', count: 2, refSeen });
+      checking = true;
+      show({ kind: 'steady' });
+      if (!isNative) {
+        // The browser cannot read text, so a steady picture is enough.
+        stopped = true;
+        void handleRef.current(() => capture());
+        return;
       }
-    }, 200);
+      try {
+        const shot = await capture();
+        if (!shot || stopped) {
+          checking = false;
+          return;
+        }
+        const text = await readText(shot).catch(() => '');
+        if (stopped) return;
+        if (parseReceipt(text).refOk) {
+          stopped = true;
+          show({ kind: 'found' });
+          void handleRef.current(() => Promise.resolve(shot), text);
+          return;
+        }
+        URL.revokeObjectURL(shot.webPath);
+        show({ kind: 'noref' });
+      } catch {
+        show({ kind: 'noref' });
+      }
+      checking = false;
+    }, 150);
     return () => {
       stopped = true;
       window.clearInterval(id);
     };
   }, [auto, grab, capture]);
 
-  const ok = look.kind === 'counting' || look.kind === 'steady';
+  const ok = look.kind === 'steady' || look.kind === 'found';
   const chip =
-    look.kind === 'counting'
-      ? look.refSeen
-        ? 'Ref No. found ✓'
-        : 'Hold steady…'
+    look.kind === 'found'
+      ? 'Ref No. found ✓'
       : look.kind === 'nothing'
         ? 'Looking for the receipt…'
         : look.kind === 'noref'
@@ -160,12 +136,6 @@ export function Scan() {
         <i className="c tr" />
         <i className="c bl" />
         <i className="c br" />
-        {cam.state === 'ready' && look.kind === 'counting' && (
-          <div className="countdown" aria-live="polite">
-            <b>{look.count}</b>
-            <span>Hold steady…</span>
-          </div>
-        )}
         {cam.state === 'ready' && (
           <div className="status">
             <span className={settings.autoCapture ? (ok ? 'ok' : 'wait') : undefined}>{settings.autoCapture ? chip : 'Keep the Ref No. sharp'}</span>
@@ -204,7 +174,7 @@ export function Scan() {
       {busy && (
         <div className="busy" role="alert">
           <div className="spin" />
-          {look.kind === 'counting' || look.kind === 'steady' ? 'Photo taken. Reading your receipt…' : 'Reading your receipt…'}
+          {look.kind === 'found' || look.kind === 'steady' ? 'Photo taken. Opening…' : 'Reading your receipt…'}
         </div>
       )}
     </main>

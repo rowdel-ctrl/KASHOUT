@@ -35,7 +35,7 @@ export interface SteadyOptions {
   holdMs: number;
 }
 
-export const DEFAULT_STEADY: SteadyOptions = { motionMax: 8, edgeMin: 4, holdMs: 700 };
+export const DEFAULT_STEADY: SteadyOptions = { motionMax: 8, edgeMin: 4, holdMs: 400 };
 
 export type SteadyKind = 'nothing' | 'moving' | 'waiting' | 'steady';
 

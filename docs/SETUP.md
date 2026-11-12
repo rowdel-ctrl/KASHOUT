@@ -146,7 +146,7 @@ Do these once, with fake or test receipts.
 7. **Closing and export.** Open **Records**. The Closing card shows the total for the dates you chose. Tap **Send** for the summary alert, and **Export** for Excel or PDF.
 8. **Dark mode and text size.** Open **Settings** and try **Theme** and **Text size**.
 9. **Pending.** Scan a receipt and tap **Save · Pending**. Home shows an amber **pending** card. Open the record and tap **Mark as paid**. It turns green and shows who paid. On a second phone, check that the alerts say "pending" and then "cashed out".
-10. **Auto capture.** Open **Record a cash-out** and hold a receipt still inside the frame. A countdown (2, 1) shows, then **Check and save** opens by itself. Turn it off in Settings > Scanning > **Take photo automatically**. If it never starts, move closer or add light. The round button always works.
+10. **Auto capture.** Open **Record a cash-out** and hold a receipt still inside the frame. The frame turns green and **Check and save** opens by itself within about a second. Turn it off in Settings > Scanning > **Take photo automatically**. If it never starts, move closer or add light. The round button always works.
 11. **Share.** Open a receipt picture in GCash or the Gallery, tap Share, pick **Kashawt**. **Check and save** opens with the details. Nothing is saved until you tap Save.
 12. **Edit.** Open a record you saved and tap **Edit**. Change the amount, save, then tap **Edited · 1 change** to see the old and new values. You cannot edit a record someone else saved.
 13. **Mark paid.** In **Records > Pending**, tap **Mark paid** on a row. Tap **Undo** in the message within a few seconds to put it back.
