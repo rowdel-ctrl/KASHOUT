@@ -3,10 +3,10 @@ import { parseReceipt } from '../lib/parse';
 import { SteadyTracker, edgeEnergy, motion } from '../lib/steady';
 import { useLiveCamera } from '../native/liveCamera';
 import { readText } from '../native/ocr';
-import { pickPhoto, takePhoto, type PickedPhoto } from '../native/photo';
+import { pickPhoto, pickPhotos, takePhoto, type PickedPhoto } from '../native/photo';
 import { isNative } from '../native/platform';
 import { draftFromPhoto, emptyDraft } from './draft';
-import type { Draft } from '../lib/types';
+import type { BatchSkipped, Draft } from '../lib/types';
 import { fillMissing } from './retry';
 import { Icon } from './icons';
 import { useApp } from './context';
@@ -20,7 +20,8 @@ type Look = { kind: 'nothing' | 'moving' | 'steady' | 'noref' | 'found' };
 const RECHECK_MS = 900;
 
 export function Scan({ retake }: { retake?: Draft }) {
-  const { fees, replace, back, toast, settings, t } = useApp();
+  const { fees, records, replace, back, toast, settings, t, beginBatch } = useApp();
+  const [progress, setProgress] = useState<{ i: number; n: number } | null>(null);
   const cam = useLiveCamera();
   const [busy, setBusy] = useState(false);
   const [look, setLook] = useState<Look>({ kind: 'nothing' });
@@ -44,6 +45,41 @@ export function Scan({ retake }: { retake?: Draft }) {
       replace({ name: 'review', draft });
     } catch (e) {
       setBusy(false);
+      const msg = (e as Error)?.message;
+      toast(msg && msg.length < 160 ? msg : t('Something went wrong with the photo. Please try again.'), true);
+    }
+  }
+  /** Several pictures from the gallery: read them all, set aside the ones that cannot be checked, then check one by one. */
+  async function pickMany() {
+    if (retake) return handle(pickPhoto);
+    try {
+      const photos = await pickPhotos(10);
+      if (photos.length === 0) return;
+      if (photos.length === 1) return handle(() => Promise.resolve(photos[0]));
+      setBusy(true);
+      const ready: Draft[] = [];
+      const skipped: BatchSkipped[] = [];
+      const seen = new Set<string>();
+      for (let i = 0; i < photos.length; i++) {
+        setProgress({ i: i + 1, n: photos.length });
+        let draft: Draft;
+        try {
+          draft = await draftFromPhoto(photos[i], { fees, settings });
+        } catch {
+          draft = { ...emptyDraft(), photoUrl: photos[i].webPath };
+        }
+        const ref = draft.ref.replace(/\s+/g, '');
+        if (!ref) skipped.push({ draft, why: 'unread', tries: 0 });
+        else if (seen.has(ref) || records.some((r) => r.ref === ref)) skipped.push({ draft, why: 'duplicate', tries: 0 });
+        else {
+          seen.add(ref);
+          ready.push(draft);
+        }
+      }
+      beginBatch(ready, skipped);
+    } catch (e) {
+      setBusy(false);
+      setProgress(null);
       const msg = (e as Error)?.message;
       toast(msg && msg.length < 160 ? msg : t('Something went wrong with the photo. Please try again.'), true);
     }
@@ -167,7 +203,7 @@ export function Scan({ retake }: { retake?: Draft }) {
       </div>
 
       <div className="shoot">
-        <button className="side" onClick={() => handle(pickPhoto)}>
+        <button className="side" onClick={() => void pickMany()}>
           <span>
             <Icon name="image" size={26} color="#fff" />
           </span>
@@ -185,7 +221,7 @@ export function Scan({ retake }: { retake?: Draft }) {
       {busy && (
         <div className="busy" role="alert">
           <div className="spin" />
-          {look.kind === 'found' || look.kind === 'steady' ? t('Photo taken. Opening…') : t('Reading your receipt…')}
+          {progress ? t('Reading {i} of {n}…', progress) : look.kind === 'found' || look.kind === 'steady' ? t('Photo taken. Opening…') : t('Reading your receipt…')}
         </div>
       )}
     </main>

@@ -1,6 +1,6 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Preferences } from '@capacitor/preferences';
-import type { Draft } from '../lib/types';
+import type { Batch, Draft } from '../lib/types';
 import { isNative } from './platform';
 
 const KEY = 'draft.v1';
@@ -77,6 +77,52 @@ export async function cancelDraftReminder(): Promise<void> {
   if (!isNative) return;
   try {
     await LocalNotifications.cancel({ notifications: [{ id: REMINDER_ID }] });
+  } catch {
+    /* ignore */
+  }
+}
+
+const BATCH_KEY = 'batch.v1';
+
+export interface StoredBatch {
+  batch: Batch;
+  at: number;
+}
+
+const slimBatch = (b: Batch): Batch => ({
+  ...b,
+  ready: b.ready.map(slim),
+  skipped: b.skipped.map((x) => ({ ...x, draft: slim(x.draft) })),
+});
+
+/** A batch that was set aside halfway. Kept like a single draft, for 24 hours. */
+export async function loadBatch(now: number = Date.now()): Promise<StoredBatch | null> {
+  try {
+    const { value } = await Preferences.get({ key: BATCH_KEY });
+    if (!value) return null;
+    const s = JSON.parse(value) as StoredBatch;
+    if (!s?.batch || typeof s.at !== 'number') return null;
+    if (now - s.at > DRAFT_MAX_AGE_MS) {
+      await Preferences.remove({ key: BATCH_KEY });
+      return null;
+    }
+    return s;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveBatchCopy(b: Batch, at: number): Promise<void> {
+  try {
+    await Preferences.set({ key: BATCH_KEY, value: JSON.stringify({ batch: slimBatch(b), at } satisfies StoredBatch) });
+  } catch {
+    /* too big or blocked */
+  }
+}
+
+export async function clearBatchCopy(): Promise<void> {
+  try {
+    await Preferences.remove({ key: BATCH_KEY });
   } catch {
     /* ignore */
   }

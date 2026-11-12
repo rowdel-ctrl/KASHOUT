@@ -121,6 +121,25 @@ export interface Draft {
   dateGuess?: boolean;
 }
 
+/** One receipt of a batch that was set aside. */
+export interface BatchSkipped {
+  draft: Draft;
+  why: 'duplicate' | 'unread' | 'skipped';
+  /** How many times it was read again. */
+  tries: number;
+}
+
+/** Several receipts added at once, checked one by one. */
+export interface Batch {
+  ready: Draft[];
+  skipped: BatchSkipped[];
+  /** The receipt being checked now. */
+  idx: number;
+  saved: number;
+  /** A skipped receipt is being fixed on its own. */
+  fixing?: boolean;
+}
+
 export type Period = 'today' | 'yesterday' | 'week' | 'month' | 'all' | 'custom';
 export type AmountBand = 'any' | 'u1k' | 'b1k5k' | 'o5k';
 export type StatusFilter = 'all' | 'pending' | 'paid';
@@ -146,7 +165,8 @@ export const DEFAULT_FILTERS: Filters = { period: 'today', from: '', to: '', amo
 export type Route =
   | { name: 'home' }
   | { name: 'scan'; retake?: Draft }
-  | { name: 'review'; draft: Draft }
+  | { name: 'review'; draft: Draft; rid?: number }
+  | { name: 'batchdone' }
   | { name: 'records'; period?: Period; status?: StatusFilter }
   | { name: 'detail'; id: string }
   | { name: 'saved' }

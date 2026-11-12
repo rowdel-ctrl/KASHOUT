@@ -5,11 +5,11 @@ import { DEFAULT_FEES } from '../lib/fees';
 import { dayKey, nextCutoff, parseMoney, peso } from '../lib/format';
 import { diffFields, fieldsOf, type EditFields } from '../lib/edit';
 import {
-  type AppUser, type CashRecord, type Draft, type FeeTier, type NewRecord, type Route, type Settings,
+  type AppUser, type Batch, type BatchSkipped, type CashRecord, type Draft, type FeeTier, type NewRecord, type Route, type Settings,
 } from '../lib/types';
-import { sendNtfy } from '../native/alerts';
+import { sendNtfy, setClosingReminder } from '../native/alerts';
 import {
-  cancelDraftReminder, clearDraftCopy, isMeaningful, loadDraft, saveDraftCopy, scheduleDraftReminder, type StoredDraft,
+  cancelDraftReminder, clearBatchCopy, clearDraftCopy, isMeaningful, loadBatch, loadDraft, saveBatchCopy, saveDraftCopy, scheduleDraftReminder, type StoredBatch, type StoredDraft,
 } from '../native/draftStore';
 import { translate, type T } from '../lib/i18n';
 import { buzzSaved } from '../native/haptics';
@@ -18,6 +18,7 @@ import { isNative } from '../native/platform';
 import { listenShared, type SharedItem } from '../native/share';
 import { fetchLatest, installedVersion, openDownload, type UpdateInfo } from '../native/update';
 import { draftFromPhoto, draftFromText } from './draft';
+import { missingFields, rereadSamePicture } from './retry';
 import type { SyncState } from '../data/api';
 
 export interface Toast { id: number; text: string; err?: boolean; action?: { label: string; run: () => void } }
@@ -61,6 +62,21 @@ interface Ctx {
   downloadUpdate: () => void;
   laterUpdate: () => void;
   saveDraft: (d: Draft, allowDuplicate: boolean, status?: 'paid' | 'pending') => void;
+  /** Several receipts added at once. null when none is being checked. */
+  batch: Batch | null;
+  /** A batch that was set aside halfway, kept on this phone. */
+  keptBatch: StoredBatch | null;
+  beginBatch: (ready: Draft[], skipped: BatchSkipped[]) => void;
+  skipInBatch: () => void;
+  /** Read a skipped receipt again. True when it could be read and is now ready to check. */
+  retryInBatch: (i: number) => Promise<boolean>;
+  fixInBatch: (i: number) => void;
+  cancelFix: (d: Draft) => void;
+  finishBatch: () => void;
+  /** Leave the batch. `keep` sets the receipts that are not checked yet aside for later. */
+  leaveBatch: (keep: boolean, current: Draft) => void;
+  resumeBatch: () => void;
+  dropBatch: () => void;
   markPaid: (r: CashRecord) => void;
   undoSave: () => void;
   signOut: () => void;
@@ -100,6 +116,14 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
   const [appVersion, setAppVersion] = useState('');
   const lastUpdateCheck = useRef(0);
   const [unsaved, setUnsaved] = useState<StoredDraft | null>(null);
+  const [batch, setBatchState] = useState<Batch | null>(null);
+  const batchRef = useRef<Batch | null>(null);
+  const setBatch = useCallback((b: Batch | null) => {
+    batchRef.current = b;
+    setBatchState(b);
+  }, []);
+  const [keptBatch, setKeptBatch] = useState<StoredBatch | null>(null);
+  const reviewId = useRef(0);
   const leaveGuard = useRef<(() => boolean) | null>(null);
   const undoTimer = useRef<number | undefined>(undefined);
   const paidTimers = useRef(new Map<string, number>());
@@ -129,6 +153,13 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
       window.removeEventListener('offline', off);
     };
   }, []);
+
+  // Closing is gone, so an old 8 PM "open Closing" reminder is switched off once.
+  useEffect(() => {
+    if (!settingsRef.current.closingReminder) return;
+    void setClosingReminder(false);
+    updateSettings({ closingReminder: false });
+  }, [updateSettings]);
 
   // The day changes at 2:00 AM, not midnight. Refresh then, and whenever the app is opened again.
   useEffect(() => {
@@ -227,19 +258,148 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
       const idTaken = recordsRef.current.some((r) => r.id === rec.ref);
       const { id } = api.saveRecord(rec, { allowDuplicate: allowDuplicate || idTaken });
       if (s.savePhoto && d.photo) api.savePhoto(id, d.photo);
-      setUndo({ id, draft: d, status });
-      window.clearTimeout(undoTimer.current);
-      undoTimer.current = window.setTimeout(() => setUndo(null), 5000);
       void buzzSaved();
       void sendNtfy(topicRef.current, `${user.name}: ${peso(amount)} ${status === 'pending' ? 'pending' : 'cashed out'}`);
-      setLastSaved({ id, amount, name: rec.name, status });
       setUnsaved(null);
       void clearDraftCopy();
       void cancelDraftReminder();
+      const b = batchRef.current;
+      if (b) {
+        // Part of a batch: no Saved screen. Go to the next receipt, or to the end of the batch.
+        const next: Batch = { ...b, saved: b.saved + 1, fixing: false };
+        if (!b.fixing && b.idx + 1 < b.ready.length) {
+          next.idx = b.idx + 1;
+          setBatch(next);
+          setStack([{ name: 'home' }, { name: 'review', draft: b.ready[next.idx], rid: ++reviewId.current }]);
+        } else {
+          if (!b.fixing) next.idx = b.ready.length;
+          setBatch(next);
+          setStack([{ name: 'home' }, { name: 'batchdone' }]);
+        }
+        return;
+      }
+      setUndo({ id, draft: d, status });
+      window.clearTimeout(undoTimer.current);
+      undoTimer.current = window.setTimeout(() => setUndo(null), 5000);
+      setLastSaved({ id, amount, name: rec.name, status });
       setStack([{ name: 'home' }, { name: 'saved' }]);
     },
     [user],
   );
+
+  const isDuplicate = useCallback((d: Draft, others: Draft[]): boolean => {
+    const ref = d.ref.replace(/\s+/g, '');
+    return !!ref && (recordsRef.current.some((r) => r.ref === ref) || others.some((o) => o !== d && o.ref.replace(/\s+/g, '') === ref));
+  }, []);
+
+  const beginBatch = useCallback(
+    (ready: Draft[], skipped: BatchSkipped[]) => {
+      const b: Batch = { ready, skipped, idx: 0, saved: 0 };
+      setBatch(b);
+      setStack(ready.length ? [{ name: 'home' }, { name: 'review', draft: ready[0], rid: ++reviewId.current }] : [{ name: 'home' }, { name: 'batchdone' }]);
+    },
+    [setBatch],
+  );
+
+  const skipInBatch = useCallback(() => {
+    const b = batchRef.current;
+    if (!b) return;
+    const next: Batch = { ...b, skipped: [...b.skipped, { draft: b.ready[b.idx], why: 'skipped', tries: 0 }], idx: b.idx + 1 };
+    setBatch(next);
+    if (next.idx < b.ready.length) setStack([{ name: 'home' }, { name: 'review', draft: b.ready[next.idx], rid: ++reviewId.current }]);
+    else setStack([{ name: 'home' }, { name: 'batchdone' }]);
+  }, [setBatch]);
+
+  const retryInBatch = useCallback(
+    async (i: number): Promise<boolean> => {
+      const b = batchRef.current;
+      const item = b?.skipped[i];
+      if (!b || !item) return false;
+      const ctx = { fees: feesRef.current, settings: settingsRef.current };
+      const draft = await rereadSamePicture(item.draft, ctx);
+      const cur = batchRef.current;
+      if (!cur) return false;
+      const ok = missingFields(draft).length === 0 && !isDuplicate(draft, cur.ready);
+      const skipped = cur.skipped.map((x, j) => (j === i ? { ...x, draft, tries: x.tries + 1 } : x));
+      if (!ok) {
+        setBatch({ ...cur, skipped });
+        return false;
+      }
+      // Now readable: check it like the others.
+      const rest = skipped.filter((_, j) => j !== i);
+      const ready = [...cur.ready, draft];
+      const next: Batch = { ...cur, ready, skipped: rest, idx: cur.ready.length };
+      setBatch(next);
+      setStack([{ name: 'home' }, { name: 'review', draft, rid: ++reviewId.current }]);
+      return true;
+    },
+    [isDuplicate, setBatch],
+  );
+
+  const fixInBatch = useCallback(
+    (i: number) => {
+      const b = batchRef.current;
+      const item = b?.skipped[i];
+      if (!b || !item) return;
+      setBatch({ ...b, skipped: b.skipped.filter((_, j) => j !== i), fixing: true });
+      setStack([{ name: 'home' }, { name: 'review', draft: item.draft, rid: ++reviewId.current }]);
+    },
+    [setBatch],
+  );
+
+  // Backing out of a receipt that was being fixed puts it back in the list.
+  const cancelFix = useCallback(
+    (d: Draft) => {
+      const b = batchRef.current;
+      if (!b) return;
+      setBatch({ ...b, skipped: [...b.skipped, { draft: d, why: 'skipped', tries: 0 }], fixing: false });
+      setStack([{ name: 'home' }, { name: 'batchdone' }]);
+    },
+    [setBatch],
+  );
+
+  const finishBatch = useCallback(() => {
+    setBatch(null);
+    setStack([{ name: 'home' }]);
+  }, [setBatch]);
+
+  const leaveBatch = useCallback(
+    (keep: boolean, current: Draft) => {
+      const b = batchRef.current;
+      setBatch(null);
+      setStack([{ name: 'home' }]);
+      if (!b || !keep) {
+        void clearBatchCopy();
+        setKeptBatch(null);
+        return;
+      }
+      const remaining = b.ready.slice(b.idx).map((d, j) => (j === 0 ? current : d));
+      const kept: StoredBatch = { batch: { ready: remaining, skipped: b.skipped, idx: 0, saved: b.saved }, at: Date.now() };
+      setKeptBatch(kept);
+      void saveBatchCopy(kept.batch, kept.at);
+      void scheduleDraftReminder(tr('Kashawt'), tr('You have receipts that are not checked yet. Tap to continue.'));
+    },
+    [setBatch, tr],
+  );
+
+  const resumeBatch = useCallback(() => {
+    if (!keptBatch) return;
+    const k = keptBatch.batch;
+    setKeptBatch(null);
+    void clearBatchCopy();
+    void cancelDraftReminder();
+    beginBatch(k.ready, k.skipped);
+  }, [keptBatch, beginBatch]);
+
+  const dropBatch = useCallback(() => {
+    setKeptBatch(null);
+    void clearBatchCopy();
+    void cancelDraftReminder();
+  }, []);
+
+  useEffect(() => {
+    void loadBatch().then((b) => b && setKeptBatch(b));
+  }, []);
 
   const markPaid = useCallback(
     (r: CashRecord) => {
@@ -396,7 +556,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
 
   return (
     <AppCtx.Provider
-      value={{ user, records, today, syncLabel, alertTopic, settings, updateSettings, fees, route, go, replace, back, tab, toast, undo, lastSaved, editRecord, t, unsaved, keepDraft, dropDraft, resumeDraft, setLeaveGuard, update, appVersion, checkUpdate, downloadUpdate, laterUpdate, saveDraft, markPaid, undoSave, signOut }}
+      value={{ batch, keptBatch, beginBatch, skipInBatch, retryInBatch, fixInBatch, cancelFix, finishBatch, leaveBatch, resumeBatch, dropBatch, user, records, today, syncLabel, alertTopic, settings, updateSettings, fees, route, go, replace, back, tab, toast, undo, lastSaved, editRecord, t, unsaved, keepDraft, dropDraft, resumeDraft, setLeaveGuard, update, appVersion, checkUpdate, downloadUpdate, laterUpdate, saveDraft, markPaid, undoSave, signOut }}
     >
       {children({ route, toasts, denied })}
     </AppCtx.Provider>

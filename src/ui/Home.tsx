@@ -7,7 +7,7 @@ import { NavBar, RecRow } from './components';
 import { useApp } from './context';
 
 export function Home() {
-  const { user, records, syncLabel, go, tab, undo, undoSave, t, settings, unsaved, resumeDraft, dropDraft, keepDraft, toast, update, downloadUpdate, laterUpdate } = useApp();
+  const { user, records, syncLabel, go, tab, undo, undoSave, t, settings, unsaved, resumeDraft, dropDraft, keepDraft, toast, update, downloadUpdate, laterUpdate, keptBatch, resumeBatch, dropBatch } = useApp();
   const tl = settings.lang === 'tl';
   // Cash-out is the cash that went out today. Pending records are counted apart.
   const todayList = applyFilters(records, { ...DEFAULT_FILTERS, period: 'today' });
@@ -49,6 +49,22 @@ export function Home() {
                 <b>{peso(day.fees)}</b>
               </div>
             </div>
+            {keptBatch && (
+              <div className="draftcard" role="status">
+                <b>{t('{n} receipts are not checked yet', { n: keptBatch.batch.ready.length })}</b>
+                <span>
+                  {t('{n} saved already', { n: keptBatch.batch.saved })} · {t('{time} ago', { time: waitText(Date.now() - keptBatch.at, tl) })}
+                </span>
+                <div className="two">
+                  <button className="btn btn-ghost" onClick={dropBatch}>
+                    {t('Discard')}
+                  </button>
+                  <button className="btn btn-primary" onClick={resumeBatch}>
+                    {t('Continue')}
+                  </button>
+                </div>
+              </div>
+            )}
             {unsaved && (
               <div className="draftcard" role="status">
                 <b>{t('You have a scan that is not saved')}</b>

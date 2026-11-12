@@ -14,7 +14,9 @@ import { Sheet, TopBar, WarnBar } from './components';
 import { useApp } from './context';
 
 export function Review({ initial }: { initial: Draft }) {
-  const { settings, fees, records, saveDraft, markPaid, tab, go, replace, toast, t, keepDraft, dropDraft, setLeaveGuard } = useApp();
+  const { settings, fees, records, saveDraft, markPaid, tab, go, replace, toast, t, keepDraft, dropDraft, setLeaveGuard, batch, skipInBatch, leaveBatch, cancelFix } = useApp();
+  const inBatch = !!batch && !batch.fixing;
+  const fixing = !!batch?.fixing;
   const [d, setD] = useState<Draft>(initial);
   const [dup, setDup] = useState<CashRecord | null>(null);
   const [saveAs, setSaveAs] = useState<'paid' | 'pending'>('paid');
@@ -49,13 +51,13 @@ export function Review({ initial }: { initial: Draft }) {
 
   // Keep what was read on this phone, so a scan is not lost if the person forgets to save.
   useEffect(() => {
-    if (!isMeaningful(d)) return;
+    if (batch || !isMeaningful(d)) return;
     const id = window.setTimeout(() => keepDraft(d), 800);
     return () => window.clearTimeout(id);
   }, [d, keepDraft]);
 
   // Back (the button or the phone's Back) asks first when there is something to lose.
-  const meaningful = isMeaningful(d);
+  const meaningful = !!batch || isMeaningful(d);
   const meaningfulRef = useRef(meaningful);
   meaningfulRef.current = meaningful;
   const leavingRef = useRef(leaving);
@@ -130,6 +132,21 @@ export function Review({ initial }: { initial: Draft }) {
     <>
       <main className="page review">
         <TopBar title={t('Check and save')} onBack={requestLeave} />
+        {inBatch && batch && (
+          <div className="batchbar">
+            <div className="row-between">
+              <b>{t('{i} of {n}', { i: batch.idx + 1, n: batch.ready.length })}</b>
+              <button className="btn btn-text" onClick={skipInBatch}>
+                {t('Skip')}
+              </button>
+            </div>
+            <div className="segs" aria-hidden="true">
+              {batch.ready.map((_, i) => (
+                <i key={i} className={i < batch.idx ? 'done' : i === batch.idx ? 'now' : ''} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {showDup && dupNow && (
           <div className="dupbanner" role="alert">
@@ -266,7 +283,36 @@ export function Review({ initial }: { initial: Draft }) {
         </div>
       </div>
 
-      {leaving && (
+      {leaving && (inBatch || fixing) && batch && (
+        <Sheet title={fixing ? t('Back to the list?') : t('Not checked yet')} onClose={() => setLeaving(false)}>
+          <div className="muted" style={{ marginTop: -6, marginBottom: 14, fontSize: 16, lineHeight: 1.4 }}>
+            {fixing
+              ? t('This receipt goes back to the list of receipts that were set aside.')
+              : t('{n} receipts are not checked yet. {saved} are saved.', { n: batch.ready.length - batch.idx, saved: batch.saved })}
+          </div>
+          <div className="stack">
+            <button className="btn btn-primary" onClick={() => setLeaving(false)}>
+              {t('Go back and continue')}
+            </button>
+            {fixing ? (
+              <button className="btn btn-ghost" onClick={() => cancelFix(d)}>
+                {t('Back to the list')}
+              </button>
+            ) : (
+              <>
+                <button className="btn btn-ghost" onClick={() => leaveBatch(true, d)}>
+                  {t('Keep it for later (draft)')}
+                </button>
+                <button className="btn btn-danger" onClick={() => leaveBatch(false, d)}>
+                  {t('Leave and discard the rest')}
+                </button>
+              </>
+            )}
+          </div>
+        </Sheet>
+      )}
+
+      {leaving && !inBatch && !fixing && (
         <Sheet title={t('Not saved yet')} onClose={() => setLeaving(false)}>
           <div className="muted" style={{ marginTop: -6, marginBottom: 14, fontSize: 16, lineHeight: 1.4 }}>
             {amount > 0 ? `${peso2(amount)} · ` : ''}

@@ -396,24 +396,49 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
     };
   }, [r.id, r.thumb]);
 
+  const source = sourceOf(r);
   const body = (
     <>
-      <div className={`heroamt${pending ? ' pend' : ''}`}>
-        <div className="badge">
-          <Icon name={pending ? 'clock' : 'check'} size={16} />
-          {pending ? t('Pending') : t('Paid')}
+      <div className="dcard">
+        <div className="row-between">
+          <span className="dtags">
+            <span className={`status${pending ? ' wait' : ''}`}>{pending ? t('Pending') : t('Paid')}</span>
+            {r.history && r.history.length > 0 && (
+              <button className="status edited" onClick={() => go({ name: 'history', id: r.id })} aria-label={t('View history')}>
+                {t('Edited · {n}', { n: r.history.length })}
+              </button>
+            )}
+          </span>
+          <span className="tag wallet" style={{ height: 30, fontSize: 13 }}>
+            <i className="dot" style={{ background: walletColor(source) }} />
+            {source}
+          </span>
         </div>
-        <small>{t('Amount')}</small>
-        <b>{peso2(r.amount)}</b>
-        <span>{pending ? t('Charge {amount} (counts when paid)', { amount: peso2(r.fee) }) : t('Charge {amount}', { amount: peso2(r.fee) })}</span>
+        <b className="damt">{peso2(r.amount)}</b>
+        <span className="muted small">{pending ? t('Charge {amount} (counts when paid)', { amount: peso2(r.fee) }) : t('Charge {amount}', { amount: peso2(r.fee) })}</span>
       </div>
-      <div>
-        <div className="muted small">{t('Reference number')}</div>
-        <div className="bigref" style={{ fontSize: 26 }}>
-          {formatRef(r.ref)}
-        </div>
-      </div>
+
+      {photo ? (
+        <>
+          <button className="photorow" aria-label={t('Enlarge the receipt photo')} onClick={() => setZoom(true)}>
+            <img src={photo} alt={t('Receipt photo')} />
+            <span>
+              <b>{t('Receipt')}</b>
+              <small>{t('Tap to enlarge')}</small>
+            </span>
+            <Icon name="right" size={18} color="var(--muted)" />
+          </button>
+          {zoom && <PhotoViewer src={photo} onClose={() => setZoom(false)} />}
+        </>
+      ) : (
+        photoDone && <div className="nophoto">{t('No photo was saved for this record.')}</div>
+      )}
+
       <div className="kvs">
+        <div className="kv">
+          <span>{t('Reference number')}</span>
+          <b>{formatRef(r.ref)}</b>
+        </div>
         <div className="kv">
           <span>{t('Customer')}</span>
           <b>{r.name || '—'}</b>
@@ -432,52 +457,36 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
             {r.by} · {dateTime(r.savedAt)}
           </b>
         </div>
-        <div className="kv">
-          <span>{t('Paid')}</span>
-          <b style={pending ? { color: 'var(--warn-text)' } : undefined}>{pending ? t('No') : r.paidBy && r.paidAt ? `${r.paidBy} · ${dateTime(r.paidAt)}` : t('Yes')}</b>
-        </div>
+        {!pending && r.paidBy && r.paidAt && (
+          <div className="kv">
+            <span>{t('Paid')}</span>
+            <b>
+              {r.paidBy} · {dateTime(r.paidAt)}
+            </b>
+          </div>
+        )}
+        {pending && (
+          <div className="kv">
+            <span>{t('Waiting')}</span>
+            <b style={{ color: waited >= LATE_MS ? 'var(--late)' : 'var(--warn-text)' }}>{waitText(waited, tl)}</b>
+          </div>
+        )}
       </div>
-      {r.history && r.history.length > 0 && (
-        <button className="editedbadge" onClick={() => go({ name: 'history', id: r.id })}>
-          {t('Edited · {n} {changes} · View history', { n: r.history.length, changes: r.history.length === 1 ? t('change') : t('changes') })}
-        </button>
-      )}
-      {pending ? (
-        <div className="paidnote" style={{ background: 'var(--warn-bg)', color: 'var(--warn-text)' }}>
-          {t('Waiting {time}.', { time: waitText(waited, tl) })} {waited >= LATE_MS ? t('This has been waiting a long time.') : t('Mark it Paid when you give the cash.')}
-        </div>
-      ) : (
-        r.paidAt && <div className="paidnote">{t('Waited {time}. Everyone was told it was paid.', { time: waitText(waited, tl) })}</div>
-      )}
-      {!photo && photoDone && <div className="muted small" style={{ textAlign: 'center' }}>{t('No photo was saved for this record.')}</div>}
-      {photo && (
-        <>
-          <button className="photobtn" aria-label={t('Enlarge the receipt photo')} onClick={() => setZoom(true)}>
-            <img src={photo} alt={t('Receipt photo')} />
-            <span>
-              <Icon name="search" size={14} color="#fff" /> {t('Tap to enlarge')}
-            </span>
-          </button>
-          {zoom && <PhotoViewer src={photo} onClose={() => setZoom(false)} />}
-        </>
-      )}
-      <div className="muted small" style={{ textAlign: 'center' }}>
-        {t('Deleted automatically after 1 year.')}
-      </div>
+
       {pending && (
         <button className="btn btn-primary" onClick={() => markPaid(r)}>
           {t('Mark as paid')}
         </button>
       )}
-      {mine && (
-        <button className="btn btn-ghost" onClick={() => setConfirm('edit')}>
-          {t('Edit')}
-        </button>
-      )}
       {mine ? (
-        <button className="btn btn-danger" onClick={() => setConfirm('delete')}>
-          {t('Delete')}
-        </button>
+        <div className="two">
+          <button className="btn btn-ghost" onClick={() => setConfirm('edit')}>
+            {t('Edit')}
+          </button>
+          <button className="btn btn-danger" onClick={() => setConfirm('delete')}>
+            {t('Delete')}
+          </button>
+        </div>
       ) : (
         <div className="muted small" style={{ textAlign: 'center' }}>
           {t('Only {name} can delete this record.', { name: r.by })}

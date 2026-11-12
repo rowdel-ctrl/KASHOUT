@@ -5,7 +5,12 @@ import { isNative } from './platform';
 
 /** Reads all text in the photo with Google ML Kit (on the phone, free, works offline). */
 export async function readText(photo: PickedPhoto): Promise<string> {
-  if (!isNative) return (globalThis as { __ocrText?: string }).__ocrText ?? ''; // browser demo and tests only
+  if (!isNative) {
+    // Browser demo and tests only. A queue gives each picture its own text.
+    const g = globalThis as { __ocrText?: string; __ocrQueue?: string[] };
+    if (g.__ocrQueue && g.__ocrQueue.length) return g.__ocrQueue.shift() ?? '';
+    return g.__ocrText ?? '';
+  }
   if (photo.uri) {
     try {
       const r = await TextRecognition.processImage({ path: photo.uri });

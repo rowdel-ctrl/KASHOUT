@@ -3,7 +3,7 @@ import { api } from '../data';
 import { DEFAULT_FEES, tierLabel } from '../lib/fees';
 import { parseMoney, peso } from '../lib/format';
 import type { FeeTier, Lang, TextSize } from '../lib/types';
-import { openAlertsApp, sendNtfy, setClosingReminder } from '../native/alerts';
+import { openAlertsApp, sendNtfy } from '../native/alerts';
 import { Icon } from './icons';
 import { OptionSheet, Switch, TopBar } from './components';
 import { useApp } from './context';
@@ -31,12 +31,6 @@ export function SettingsScreen() {
   const [checking, setChecking] = useState(false);
   const [sheet, setSheet] = useState<'size' | 'limit' | 'lang' | null>(null);
 
-  async function toggleReminder(on: boolean) {
-    const ok = await setClosingReminder(on);
-    if (!ok && on) return toast(t('Could not turn on the reminder. Allow notifications first.'), true);
-    updateSettings({ closingReminder: on });
-  }
-
   const sizeLabel = t(SIZES.find((x) => x.value === settings.textSize)!.label);
   const limitLabel = t(LIMITS.find((l) => l.value === settings.bigLimit)?.label ?? peso(settings.bigLimit));
   const langLabel = LANGS.find((l) => l.value === settings.lang)!.label;
@@ -51,7 +45,6 @@ export function SettingsScreen() {
           <button className="item" aria-haspopup="dialog" onClick={() => setSheet('lang')}>
             <span className="grow">
               {t('Language')}
-              <small>{t('English or Taglish')}</small>
             </span>
             <span className="val">
               {langLabel} <Icon name="down" size={16} color="var(--muted)" />
@@ -70,14 +63,12 @@ export function SettingsScreen() {
           <div className="item">
             <span className="grow">
               {t('Take photo automatically')}
-              <small>{t('The camera takes the photo when the receipt is steady. You still tap Save.')}</small>
             </span>
             <Switch on={settings.autoCapture} label={t('Take photo automatically')} onChange={(v) => updateSettings({ autoCapture: v })} />
           </div>
           <div className="item">
             <span className="grow">
               {t('Save receipt photo')}
-              <small>{t('A small copy, for checking later')}</small>
             </span>
             <Switch on={settings.savePhoto} label={t('Save receipt photo')} onChange={(v) => updateSettings({ savePhoto: v })} />
           </div>
@@ -88,7 +79,6 @@ export function SettingsScreen() {
           <button className="item" aria-haspopup="dialog" onClick={() => setSheet('limit')}>
             <span className="grow">
               {t('Big amount limit')}
-              <small>{t('Warns above this amount')}</small>
             </span>
             <span className="val">
               {limitLabel} <Icon name="down" size={16} color="var(--muted)" />
@@ -97,14 +87,12 @@ export function SettingsScreen() {
           <div className="item">
             <span className="grow">
               {t('Warn on old receipts')}
-              <small>{t('Date is not today')}</small>
             </span>
             <Switch on={settings.warnOld} label={t('Warn on old receipts')} onChange={(v) => updateSettings({ warnOld: v })} />
           </div>
           <button className="item" onClick={() => go({ name: 'fees' })}>
             <span className="grow">
               {t('Charge table')}
-              <small>{t('Set by amount')}</small>
             </span>
             <span className="val">
               {t('View')} <Icon name="right" size={16} color="var(--muted)" />
@@ -116,15 +104,7 @@ export function SettingsScreen() {
         <div className="card flush">
           <div className="item">
             <span className="grow">
-              {t('Closing reminder')}
-              <small>{t('Every day at 8:00 PM')}</small>
-            </span>
-            <Switch on={settings.closingReminder} label={t('Closing reminder')} onChange={toggleReminder} />
-          </div>
-          <div className="item">
-            <span className="grow">
               {t('Phone alerts')}
-              <small>{t('Get an alert when someone saves. Needs the free ntfy app.')}</small>
             </span>
             <button className="chipbtn" onClick={() => alertTopic ? void openAlertsApp(alertTopic) : toast(t('Alerts are not ready yet. Check your internet.'), true)}>
               {t('Turn on')}
@@ -133,7 +113,6 @@ export function SettingsScreen() {
           <div className="item">
             <span className="grow">
               {t('Send a test alert')}
-              <small>{t('Everyone with alerts on gets it')}</small>
             </span>
             <button
               className="chipbtn"

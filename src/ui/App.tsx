@@ -10,6 +10,7 @@ import { Home } from './Home';
 import { Detail, Records } from './Records';
 import { Edit, History } from './Edit';
 import { Review } from './Review';
+import { BatchDone } from './BatchDone';
 import { Saved } from './Saved';
 import { Scan } from './Scan';
 import { FeeTable, SettingsScreen } from './Settings';
@@ -110,7 +111,8 @@ function Screen({ route }: { route: ReturnType<typeof useApp>['route'] }) {
   switch (route.name) {
     case 'home': return <Home />;
     case 'scan': return <Scan retake={route.retake} />;
-    case 'review': return <Review initial={route.draft} />;
+    case 'review': return <Review key={route.rid} initial={route.draft} />;
+    case 'batchdone': return <BatchDone />;
     case 'records': return <Records key={route.status ?? 'all'} initialPeriod={route.period} initialStatus={route.status} />;
     case 'detail': return <Detail id={route.id} />;
     case 'saved': return <Saved />;

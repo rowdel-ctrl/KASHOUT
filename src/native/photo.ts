@@ -8,6 +8,18 @@ export interface PickedPhoto {
   webPath: string;
 }
 
+function pickFilesOnWeb(): Promise<PickedPhoto[]> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.onchange = () => resolve(Array.from(input.files ?? []).map((f) => ({ webPath: URL.createObjectURL(f) })));
+    input.oncancel = () => resolve([]);
+    input.click();
+  });
+}
+
 function pickFileOnWeb(): Promise<PickedPhoto | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
@@ -54,6 +66,18 @@ export async function pickPhoto(): Promise<PickedPhoto | null> {
     return { uri: m.uri, webPath: m.webPath };
   } catch (e) {
     if (isCancel(e)) return null;
+    throw e;
+  }
+}
+
+/** Pick up to `limit` pictures from the gallery. An empty list when the person cancels. */
+export async function pickPhotos(limit = 10): Promise<PickedPhoto[]> {
+  if (!isNative) return (await pickFilesOnWeb()).slice(0, limit);
+  try {
+    const r = await Camera.chooseFromGallery({ mediaType: MediaTypeSelection.Photo, allowMultipleSelection: true, limit });
+    return r.results.filter((m) => m.webPath).slice(0, limit).map((m) => ({ uri: m.uri, webPath: m.webPath as string }));
+  } catch (e) {
+    if (isCancel(e)) return [];
     throw e;
   }
 }
