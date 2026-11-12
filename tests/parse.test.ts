@@ -187,3 +187,20 @@ describe('dates printed as Today or Yesterday', () => {
     expect(parseReceipt('Nov 08, 2026 1:23 PM', now).txAt).toBe(new Date(2026, 10, 8, 13, 23).getTime());
   });
 });
+
+describe('GCash inbox message shared as text', () => {
+  // Made-up values. The Share button sends only the message, not the date shown above it.
+  const SHARED = 'You have received PHP 162.00 from JH*N DR*Y S. +639154721724 w/ MSG: . Your new balance is PHP 417.63. Ref. No. 0046554610929.';
+  it('reads the amount, name, number and reference', () => {
+    const r = parseReceipt(SHARED);
+    expect(r.amount).toBe(162);
+    expect(r.name).toBe('JH*N DR*Y S.');
+    expect(r.number).toBe('09154721724');
+    expect(r.ref).toBe('0046554610929');
+    expect(r.refOk).toBe(true);
+    expect(r.txAt).toBeNull();
+  });
+  it('reads a long month name with a leading zero in the hour', () => {
+    expect(parseReceipt('October 26, 2026 05:39 PM\n' + SHARED).txAt).toBe(new Date(2026, 9, 26, 17, 39).getTime());
+  });
+});

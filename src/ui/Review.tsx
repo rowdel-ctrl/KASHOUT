@@ -157,9 +157,10 @@ export function Review({ initial }: { initial: Draft }) {
 
         <div className="field">
           <label htmlFor="dt">{t('Date and time')}</label>
-          <input id="dt" type="datetime-local" className={`box${has('old') || has('date') ? ' warn' : ''}`} value={toLocalInput(d.txAt)} onChange={(e) => setD({ ...d, txAt: fromLocalInput(e.target.value) })} />
+          <input id="dt" type="datetime-local" className={`box${has('old') || has('date') ? ' warn' : ''}`} value={toLocalInput(d.txAt)} onChange={(e) => setD({ ...d, txAt: fromLocalInput(e.target.value), dateGuess: false })} />
           {has('old') && <div className="note">{t('This receipt is not from today')}</div>}
           {has('date') && <div className="note">{t('The date is missing. Please set it.')}</div>}
+          {d.dateGuess && <div className="note">{t('The shared text has no date, so today was used. Change it if the receipt is older.')}</div>}
         </div>
 
         <div className="field">

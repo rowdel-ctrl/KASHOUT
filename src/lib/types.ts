@@ -113,6 +113,8 @@ export interface Draft {
   refRead: boolean;
   /** The name was filled in from an earlier record with the same number. */
   autoName?: boolean;
+  /** The shared text had no date, so the time of sharing was used. */
+  dateGuess?: boolean;
 }
 
 export type Period = 'today' | 'yesterday' | 'week' | 'all' | 'custom';

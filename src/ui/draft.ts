@@ -44,6 +44,9 @@ export async function draftFromPhoto(photo: PickedPhoto, ctx: DraftContext, know
 }
 
 /** A receipt shared as text. There is no photo to keep. */
-export function draftFromText(text: string, ctx: DraftContext): Draft {
-  return { ...fromParsed(parseReceipt(text), ctx), rawText: text };
+export function draftFromText(text: string, ctx: DraftContext, now: number = Date.now()): Draft {
+  const d = { ...fromParsed(parseReceipt(text, now), ctx), rawText: text };
+  // GCash's Share button sends only the message, and the date is not part of it. Use today, and say so.
+  if (d.txAt == null) return { ...d, txAt: now, dateGuess: true };
+  return d;
 }
