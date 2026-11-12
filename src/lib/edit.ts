@@ -8,19 +8,21 @@ export interface EditFields {
   txAt: number | null;
   name: string;
   number: string;
+  source: string;
 }
 
 const LABELS: Record<string, string> = {
   ref: 'Reference number',
   amount: 'Amount',
-  fee: 'Fee',
+  fee: 'Charge',
   txAt: 'Date and time',
   name: 'Name',
   number: 'Number',
+  source: 'From',
 };
 
 export const fieldsOf = (r: CashRecord): EditFields => ({
-  ref: r.ref, amount: r.amount, fee: r.fee, txAt: r.txAt, name: r.name, number: r.number,
+  ref: r.ref, amount: r.amount, fee: r.fee, txAt: r.txAt, name: r.name, number: r.number, source: r.source || 'GCash',
 });
 
 /** What changed between the saved record and the new values. Empty if nothing changed. */

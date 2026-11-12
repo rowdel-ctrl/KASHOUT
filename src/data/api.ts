@@ -33,7 +33,7 @@ export interface DataApi {
   /** Puts a record back to pending. Only works right after it was marked paid, by the same person. Not awaited. */
   undoPaid(id: string): void;
   /** Changes a record. `history` is the whole list, with the new entry last. Only the person who saved it can do this. Not awaited. */
-  editRecord(id: string, fields: EditFields, history: EditEntry[]): void;
+  editRecord(id: string, fields: Partial<EditFields>, history: EditEntry[]): void;
   /** Saves the sharper photo for a record, kept apart from the list so the list stays fast. Not awaited. */
   savePhoto(id: string, dataUrl: string): void;
   /** Loads a record's photo when it is opened. Null if there is none. */

@@ -146,8 +146,8 @@ export function Review({ initial }: { initial: Draft }) {
             <input id="amt" className={`box big${has('big') ? ' warn' : ''}`} inputMode="decimal" autoComplete="off" value={d.amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
           <div className="field">
-            <span className="lab">{t('Fee')}</span>
-            <button className="box big" aria-haspopup="dialog" aria-label={t('Fee {amount}. Change', { amount: peso2(feeNum) })} onClick={() => setSheet('fee')}>
+            <span className="lab">{t('Charge')}</span>
+            <button className="box big" aria-haspopup="dialog" aria-label={t('Charge {amount}. Change', { amount: peso2(feeNum) })} onClick={() => setSheet('fee')}>
               <span>{d.fee ? peso(feeNum) : '—'}</span>
               <Icon name="down" size={18} />
             </button>
@@ -249,7 +249,7 @@ export function Review({ initial }: { initial: Draft }) {
       )}
 
       {sheet === 'fee' && (
-        <Sheet title={t('Fee')} onClose={() => setSheet(null)}>
+        <Sheet title={t('Charge')} onClose={() => setSheet(null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <button
               className={`opt${!d.feeTouched ? ' on' : ''}`}
@@ -280,13 +280,13 @@ export function Review({ initial }: { initial: Draft }) {
             ))}
           </div>
           <div className="field">
-            <label htmlFor="cfee">{t('Other fee (₱)')}</label>
+            <label htmlFor="cfee">{t('Other charge (₱)')}</label>
             <input
               id="cfee"
               className="box"
               inputMode="decimal"
               value={d.feeTouched ? d.fee : ''}
-              placeholder={t('Type a fee')}
+              placeholder={t('Type a charge')}
               onChange={(e) => setD({ ...d, fee: e.target.value, feeTouched: true })}
             />
           </div>

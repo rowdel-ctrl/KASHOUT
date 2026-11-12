@@ -31,7 +31,7 @@ const LISTED = [
   'Take a photo of the receipt', 'Fit the whole receipt inside the frame. The app reads the details for you.',
   'Check the details', 'Look at the reference number and amount. Tap any box to fix it. Yellow notes mean please check.',
   'Save, and undo if needed', 'Tap Save when the cash is given. You have 5 seconds to undo. Other staff see it right away.',
-  'Reference number', 'Amount', 'Fee', 'Date and time', 'Name', 'Number',
+  'Reference number', 'Amount', 'Charge', 'Date and time', 'Name', 'Number',
   'We could not read the date.', 'This receipt is from {date}.', '{amount} is a big amount.', 'The reference number is not 13 digits.',
 ];
 

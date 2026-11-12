@@ -215,6 +215,8 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
         fee: parseMoney(d.fee),
         name: d.name.trim(),
         number: d.number.trim(),
+        // Only a wallet other than GCash is stored, so records still save before the new rules are published.
+        source: d.source && d.source !== 'GCash' ? d.source : undefined,
         txAt: d.txAt,
         savedAt: Date.now(),
         by: user.name,
@@ -271,7 +273,9 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
         toast(tr('Nothing was changed'));
         return false;
       }
-      api.editRecord(r.id, next, [...(r.history ?? []), { at: Date.now(), by: user.name, byUid: user.uid, changes }]);
+      const { source, ...rest } = next;
+      const payload = source !== (r.source || 'GCash') ? next : rest;
+      api.editRecord(r.id, payload, [...(r.history ?? []), { at: Date.now(), by: user.name, byUid: user.uid, changes }]);
       toast(tr('Changes saved'));
       return true;
     },

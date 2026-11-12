@@ -290,3 +290,23 @@ describe('edit a record', () => {
     await assertSucceeds(updateDoc(doc(ana(env), 'records', 'mine'), { fee: 50, history: [entry('ana')], editedAt: Date.now() }));
   });
 });
+
+describe('where the money came from (source)', () => {
+  const entry = { at: Date.now(), by: 'Ana', byUid: 'ana', changes: [{ f: 'source', from: 'GCash', to: 'Maya' }] };
+  it('a record can say which wallet or bank it came from', async () => {
+    await assertSucceeds(setDoc(doc(ana(env), 'records', 's1'), rec('ana', { source: 'MariBank' })));
+    await assertSucceeds(setDoc(doc(ana(env), 'records', 's2'), rec('ana')));
+  });
+  it('the source must be a short text', async () => {
+    await assertFails(setDoc(doc(ana(env), 'records', 's3'), rec('ana', { source: 5 })));
+    await assertFails(setDoc(doc(ana(env), 'records', 's4'), rec('ana', { source: 'x'.repeat(31) })));
+  });
+  it('the person who saved it can correct the source, and it goes in the history', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'records', 's5'), rec('ana', { savedAt: Date.now() })));
+    await assertSucceeds(updateDoc(doc(ana(env), 'records', 's5'), { source: 'Maya', history: [entry], editedAt: Date.now() }));
+  });
+  it('someone else cannot change the source', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'records', 's6'), rec('ben', { savedAt: Date.now() })));
+    await assertFails(updateDoc(doc(ana(env), 'records', 's6'), { source: 'Maya', history: [entry], editedAt: Date.now() }));
+  });
+});

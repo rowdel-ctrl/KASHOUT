@@ -13,7 +13,7 @@ function csvCell(v: string | number): string {
 
 /** Excel opens this directly. The reference is written as ="..." so Excel keeps all 13 digits. */
 export function toCsv(records: CashRecord[]): string {
-  const head = ['Saved', 'Reference', 'Amount', 'Fee', 'Name', 'Number', 'Receipt date', 'Saved by', 'Status', 'Paid by', 'Paid at'];
+  const head = ['Saved', 'Reference', 'Amount', 'Charge', 'Name', 'Number', 'Receipt date', 'Saved by', 'Status', 'Paid by', 'Paid at'];
   const rows = records.map((r) => [
     dateTime(r.savedAt),
     `="${r.ref}"`,
@@ -43,7 +43,7 @@ export function buildPdf(records: CashRecord[], title: string): jsPDF {
     { h: 'Saved', x: M, w: 92 },
     { h: 'Reference', x: M + 92, w: 92 },
     { h: 'Amount', x: M + 184, w: 62 },
-    { h: 'Fee', x: M + 246, w: 38 },
+    { h: 'Charge', x: M + 246, w: 38 },
     { h: 'Name', x: M + 284, w: 100 },
     { h: 'Number', x: M + 384, w: 90 },
     { h: 'By', x: M + 474, w: 38 },
@@ -62,7 +62,7 @@ export function buildPdf(records: CashRecord[], title: string): jsPDF {
   doc.setFont('helvetica', 'bold').setFontSize(16).text(title, M, y);
   y += 20;
   doc.setFont('helvetica', 'normal').setFontSize(10);
-  doc.text(`${paid.length} paid   ${waiting} pending   Given out: ${peso2(total).replace('₱', 'PHP ')}   Fees: ${peso2(fees).replace('₱', 'PHP ')}`, M, y);
+  doc.text(`${paid.length} paid   ${waiting} pending   Given out: ${peso2(total).replace('₱', 'PHP ')}   Charge: ${peso2(fees).replace('₱', 'PHP ')}`, M, y);
   y += 22;
   header();
   doc.setFontSize(9);

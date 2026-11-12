@@ -17,23 +17,21 @@ export function TopBar({ title, onBack }: { title: string; onBack?: () => void }
   );
 }
 
-export function NavBar({ active }: { active: 'home' | 'records' | 'settings' }) {
-  const { tab, t } = useApp();
-  const items: { key: 'home' | 'records' | 'settings'; label: string; icon: string; route: Route }[] = [
-    { key: 'home', label: t('Home'), icon: 'home', route: { name: 'home' } },
-    { key: 'records', label: t('Records'), icon: 'list', route: { name: 'records' } },
-    { key: 'settings', label: t('Settings'), icon: 'gear', route: { name: 'settings' } },
-  ];
+export function NavBar({ active }: { active: 'home' | 'records' }) {
+  const { tab, go, t } = useApp();
   return (
     <nav className="nav" aria-label={t('Main')}>
-      {items.map((i) => (
-        <button key={i.key} className={active === i.key ? 'on' : ''} aria-current={active === i.key ? 'page' : undefined} onClick={() => tab(i.route)}>
-          <i>
-            <Icon name={i.icon} size={24} soft={active === i.key} />
-          </i>
-          {i.label}
-        </button>
-      ))}
+      <button className={`tab${active === 'home' ? ' on' : ''}`} aria-current={active === 'home' ? 'page' : undefined} onClick={() => tab({ name: 'home' })}>
+        <Icon name="home" size={24} soft={active === 'home'} />
+        {t('Home')}
+      </button>
+      <button className="scanbtn" aria-label={t('Scan a receipt')} onClick={() => go({ name: 'scan' })}>
+        <Icon name="camera" size={30} />
+      </button>
+      <button className={`tab${active === 'records' ? ' on' : ''}`} aria-current={active === 'records' ? 'page' : undefined} onClick={() => tab({ name: 'records' })}>
+        <Icon name="list" size={24} soft={active === 'records'} />
+        {t('Records')}
+      </button>
     </nav>
   );
 }

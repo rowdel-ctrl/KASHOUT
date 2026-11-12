@@ -176,7 +176,7 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
                   <span className="pills">
                     <i>{sum.count} {sum.count === 1 ? t('cash-out') : t('cash-outs')}</i>
                     <i>
-                      {t('Fees')} {peso(sum.fees)}
+                      {t('Charge')} {peso(sum.fees)}
                     </i>
                   </span>
                 </div>
@@ -303,7 +303,7 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
               <b>{peso(sum.total)}</b>
             </div>
             <div>
-              <small>{t('Fees')}</small>
+              <small>{t('Charge')}</small>
               <b>{peso2(sum.fees)}</b>
             </div>
             <div className="p">
@@ -395,7 +395,7 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
         </div>
         <small>{t('Amount')}</small>
         <b>{peso2(r.amount)}</b>
-        <span>{pending ? t('Fee {amount} (counts when paid)', { amount: peso2(r.fee) }) : t('Fee {amount} earned', { amount: peso2(r.fee) })}</span>
+        <span>{pending ? t('Charge {amount} (counts when paid)', { amount: peso2(r.fee) }) : t('Charge {amount}', { amount: peso2(r.fee) })}</span>
       </div>
       <div>
         <div className="muted small">{t('Reference number')}</div>

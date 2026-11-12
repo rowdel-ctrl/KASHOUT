@@ -119,6 +119,7 @@ export function createFirebaseApi(cfg: FirebaseSettings): DataApi {
       const id = opts.allowDuplicate || !rec.ref ? `${rec.ref || 'x'}-${rand}` : rec.ref;
       const data: Record<string, unknown> = { ...rec };
       if (data.thumb === undefined) delete data.thumb;
+      if (data.source === undefined) delete data.source;
       // Not awaited: offline, the promise only settles when the server answers.
       setDoc(doc(db, 'records', id), data).catch((e: { code?: string }) => {
         const msg =

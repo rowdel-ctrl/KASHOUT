@@ -11,6 +11,8 @@ export interface CashRecord {
   savedAt: number;
   by: string;
   byUid: string;
+  /** Where the money came from: GCash, Maya, MariBank and so on. Older records have none and are GCash. */
+  source?: string;
   /** Small JPEG data URL of the receipt photo (older records only). */
   thumb?: string;
   /** "pending" = recorded, cash not given yet. Records without a status are paid. */
@@ -113,6 +115,8 @@ export interface Draft {
   refRead: boolean;
   /** The name was filled in from an earlier record with the same number. */
   autoName?: boolean;
+  /** Where the money came from. Drafts kept by older versions have none. */
+  source?: string;
   /** The shared text had no date, so the time of sharing was used. */
   dateGuess?: boolean;
 }

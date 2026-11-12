@@ -63,13 +63,13 @@ export function Edit({ id }: { id: string }) {
             <input id="eamt" className="box big" inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
           <div className="field">
-            <label htmlFor="efee">{t('Fee')}</label>
+            <label htmlFor="efee">{t('Charge')}</label>
             <input id="efee" className="box big" inputMode="decimal" autoComplete="off" value={fee} onChange={(e) => setFee(e.target.value)} />
           </div>
         </div>
         {auto != null && auto !== feeNum && (
           <button className="link" style={{ marginTop: 6 }} onClick={() => setFee(auto.toFixed(2))}>
-            {t('Use the table fee: {fee}', { fee: peso(auto) })}
+            {t('Use the table charge: {fee}', { fee: peso(auto) })}
           </button>
         )}
 
@@ -94,7 +94,7 @@ export function Edit({ id }: { id: string }) {
             className="btn btn-primary"
             disabled={!canSave}
             onClick={() => {
-              if (editRecord(r, { ref: refDigits, amount: amountNum, fee: feeNum, txAt, name: name.trim(), number: number.trim() })) back();
+              if (editRecord(r, { ref: refDigits, amount: amountNum, fee: feeNum, txAt, name: name.trim(), number: number.trim(), source: r.source || 'GCash' })) back();
             }}
           >
             {t('Save changes')}

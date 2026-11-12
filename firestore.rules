@@ -13,7 +13,7 @@ service cloud.firestore {
     }
 
     function validRecord(d) {
-      return d.keys().hasOnly(['ref', 'amount', 'fee', 'name', 'number', 'txAt', 'savedAt', 'by', 'byUid', 'thumb', 'status'])
+      return d.keys().hasOnly(['ref', 'amount', 'fee', 'name', 'number', 'txAt', 'savedAt', 'by', 'byUid', 'thumb', 'status', 'source'])
         && d.keys().hasAll(['ref', 'amount', 'fee', 'name', 'number', 'txAt', 'savedAt', 'by', 'byUid'])
         && d.ref is string && d.ref.size() <= 40
         && d.amount is number && d.amount > 0 && d.amount <= 1000000
@@ -25,7 +25,8 @@ service cloud.firestore {
         && d.by is string && d.by.size() <= 60
         && d.byUid == request.auth.uid
         && (!('thumb' in d) || (d.thumb is string && d.thumb.size() <= 60000))
-        && (!('status' in d) || d.status in ['paid', 'pending']);
+        && (!('status' in d) || d.status in ['paid', 'pending'])
+        && (!('source' in d) || (d.source is string && d.source.size() <= 30));
     }
 
     function isMarkPaid() {
@@ -49,12 +50,13 @@ service cloud.firestore {
     function isOwnerEdit() {
       let d = request.resource.data;
       return resource.data.byUid == request.auth.uid
-        && d.diff(resource.data).affectedKeys().hasOnly(['ref', 'amount', 'fee', 'name', 'number', 'txAt', 'history', 'editedAt'])
+        && d.diff(resource.data).affectedKeys().hasOnly(['ref', 'amount', 'fee', 'name', 'number', 'source', 'txAt', 'history', 'editedAt'])
         && d.ref is string && d.ref.size() > 0 && d.ref.size() <= 40
         && d.amount is number && d.amount > 0 && d.amount <= 1000000
         && d.fee is number && d.fee >= 0 && d.fee <= 100000
         && d.name is string && d.name.size() <= 80
         && d.number is string && d.number.size() <= 40
+        && (!('source' in d) || (d.source is string && d.source.size() <= 30))
         && (d.txAt == null || d.txAt is number)
         && d.editedAt is number
         && d.history is list

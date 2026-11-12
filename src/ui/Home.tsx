@@ -26,9 +26,16 @@ export function Home() {
               Kashawt
             </h1>
           </div>
-          <div className={`pill${syncLabel.wait ? ' wait' : ''}`} role="status">
-            <i />
-            {syncLabel.text}
+          <div className="row-between" style={{ gap: 8 }}>
+            {syncLabel.wait && (
+              <div className="pill wait" role="status">
+                <i />
+                {syncLabel.text}
+              </div>
+            )}
+            <button className="round" aria-label={t('Settings')} onClick={() => go({ name: 'settings' })}>
+              <Icon name="gear" size={24} />
+            </button>
           </div>
         </div>
 
@@ -100,9 +107,8 @@ export function Home() {
                 <span>{t('{n} cash-outs', { n: day.count })}</span>
               </div>
               <div className="stat">
-                <small>{t('Fees today')}</small>
+                <small>{t('Charge')}</small>
                 <b>{peso2(fees)}</b>
-                <span>{t('From fees')}</span>
               </div>
             </div>
           </div>

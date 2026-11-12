@@ -28,8 +28,8 @@ export default function App() {
   useEffect(() => {
     if (!settings) return;
     document.documentElement.style.fontSize = `${16 * SCALE[settings.textSize]}px`;
-    document.documentElement.dataset.theme = settings.theme;
-  }, [settings?.textSize, settings?.theme]);
+    document.documentElement.dataset.theme = 'light';
+  }, [settings?.textSize]);
 
   // The status bar and navigation bar follow the app's colours, with icons that can be read.
   useEffect(() => {

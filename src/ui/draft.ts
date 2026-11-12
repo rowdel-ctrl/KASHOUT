@@ -13,7 +13,7 @@ export interface DraftContext {
 }
 
 export function emptyDraft(): Draft {
-  return { ref: '', amount: '', fee: '', feeTouched: false, name: '', number: '', txAt: Date.now(), refRead: false };
+  return { ref: '', amount: '', fee: '', feeTouched: false, name: '', number: '', txAt: Date.now(), refRead: false, source: 'GCash' };
 }
 
 function fromParsed(p: ParsedReceipt, ctx: DraftContext): Draft {
@@ -29,6 +29,7 @@ function fromParsed(p: ParsedReceipt, ctx: DraftContext): Draft {
     number: who.number,
     txAt: p.txAt,
     refRead: p.refOk,
+    source: p.source,
   };
 }
 

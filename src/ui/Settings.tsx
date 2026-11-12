@@ -2,21 +2,16 @@ import { useState } from 'react';
 import { api } from '../data';
 import { DEFAULT_FEES, tierLabel } from '../lib/fees';
 import { parseMoney, peso } from '../lib/format';
-import type { FeeTier, Lang, TextSize, Theme } from '../lib/types';
+import type { FeeTier, Lang, TextSize } from '../lib/types';
 import { openAlertsApp, sendNtfy, setClosingReminder } from '../native/alerts';
 import { Icon } from './icons';
-import { NavBar, OptionSheet, Switch, TopBar } from './components';
+import { OptionSheet, Switch, TopBar } from './components';
 import { useApp } from './context';
 
 const SIZES: { value: TextSize; label: string }[] = [
   { value: 'normal', label: 'Normal' },
   { value: 'large', label: 'Large' },
   { value: 'xl', label: 'Extra large' },
-];
-const THEMES: { value: Theme; label: string; hint?: string }[] = [
-  { value: 'system', label: 'System', hint: 'follows your phone' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
 ];
 const LANGS: { value: Lang; label: string }[] = [
   { value: 'tl', label: 'Taglish' },
@@ -34,7 +29,7 @@ const LIMITS: { value: number; label: string }[] = [
 export function SettingsScreen() {
   const { settings, updateSettings, go, toast, user, signOut, alertTopic, t, appVersion, checkUpdate, update, downloadUpdate } = useApp();
   const [checking, setChecking] = useState(false);
-  const [sheet, setSheet] = useState<'size' | 'theme' | 'limit' | 'lang' | null>(null);
+  const [sheet, setSheet] = useState<'size' | 'limit' | 'lang' | null>(null);
 
   async function toggleReminder(on: boolean) {
     const ok = await setClosingReminder(on);
@@ -43,14 +38,13 @@ export function SettingsScreen() {
   }
 
   const sizeLabel = t(SIZES.find((x) => x.value === settings.textSize)!.label);
-  const themeLabel = t(THEMES.find((x) => x.value === settings.theme)!.label);
   const limitLabel = t(LIMITS.find((l) => l.value === settings.bigLimit)?.label ?? peso(settings.bigLimit));
   const langLabel = LANGS.find((l) => l.value === settings.lang)!.label;
 
   return (
     <>
-      <main className="page has-nav">
-        <h1 className="h1">{t('Settings')}</h1>
+      <main className="page">
+        <TopBar title={t('Settings')} />
 
         <div className="sec">{t('Language and display')}</div>
         <div className="card flush">
@@ -67,12 +61,6 @@ export function SettingsScreen() {
             <span className="grow">{t('Text size')}</span>
             <span className="val">
               {sizeLabel} <Icon name="down" size={16} color="var(--muted)" />
-            </span>
-          </button>
-          <button className="item" aria-haspopup="dialog" onClick={() => setSheet('theme')}>
-            <span className="grow">{t('Theme')}</span>
-            <span className="val">
-              {themeLabel} <Icon name="down" size={16} color="var(--muted)" />
             </span>
           </button>
         </div>
@@ -115,7 +103,7 @@ export function SettingsScreen() {
           </div>
           <button className="item" onClick={() => go({ name: 'fees' })}>
             <span className="grow">
-              {t('Fee table')}
+              {t('Charge table')}
               <small>{t('Set by amount')}</small>
             </span>
             <span className="val">
@@ -198,7 +186,6 @@ export function SettingsScreen() {
           </button>
         </div>
       </main>
-      <NavBar active="settings" />
 
       {sheet === 'size' && (
         <OptionSheet
@@ -210,7 +197,6 @@ export function SettingsScreen() {
         />
       )}
       {sheet === 'lang' && <OptionSheet title={t('Language')} options={LANGS} value={settings.lang} onPick={(v) => updateSettings({ lang: v })} onClose={() => setSheet(null)} />}
-      {sheet === 'theme' && <OptionSheet title={t('Theme')} options={THEMES.map((o) => ({ ...o, label: t(o.label), hint: o.hint ? t(o.hint) : undefined }))} value={settings.theme} onPick={(v) => updateSettings({ theme: v })} onClose={() => setSheet(null)} />}
       {sheet === 'limit' && (
         <OptionSheet
           title={t('Big amount limit')}
@@ -235,7 +221,7 @@ export function FeeTable() {
   async function save() {
     try {
       await api.saveFees(draft);
-      toast(t('Fee table saved'));
+      toast(t('Charge table saved'));
       setEdit(false);
     } catch {
       toast(t('Could not save the table. Check your internet.'), true);
@@ -244,8 +230,8 @@ export function FeeTable() {
 
   return (
     <main className="page">
-      <TopBar title={t('Fee table')} />
-      <div className="example">{t('Example: ₱3,500 cash-out = ₱40 fee')}</div>
+      <TopBar title={t('Charge table')} />
+      <div className="example">{t('Example: ₱3,500 cash-out = ₱40 charge')}</div>
       <div className="card" style={{ marginTop: 12, padding: '6px 16px' }}>
         <div className="tiers">
           {cols.map((col, ci) => (
@@ -254,7 +240,7 @@ export function FeeTable() {
                 <div className="tier" key={i}>
                   <span>{tierLabel(table, i)}</span>
                   {edit ? (
-                    <input aria-label={t('Fee for {range}', { range: tierLabel(table, i) })} inputMode="numeric" value={tier.fee} onChange={(e) => setDraft(draft.map((x, j) => (j === i ? { ...x, fee: parseMoney(e.target.value) } : x)))} />
+                    <input aria-label={t('Charge for {range}', { range: tierLabel(table, i) })} inputMode="numeric" value={tier.fee} onChange={(e) => setDraft(draft.map((x, j) => (j === i ? { ...x, fee: parseMoney(e.target.value) } : x)))} />
                   ) : (
                     <b>₱{tier.fee}</b>
                   )}
@@ -265,7 +251,7 @@ export function FeeTable() {
         </div>
       </div>
       <p className="muted" style={{ textAlign: 'center', fontSize: 15, margin: '14px 0' }}>
-        {t('Above ₱{amount}, type the fee by hand.', { amount: table[table.length - 1].upTo.toLocaleString('en-US') })}
+        {t('Above ₱{amount}, type the charge by hand.', { amount: table[table.length - 1].upTo.toLocaleString('en-US') })}
       </p>
       {edit ? (
         <div className="stack">
