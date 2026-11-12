@@ -27,7 +27,7 @@ export function NavBar({ active }: { active: 'home' | 'records' }) {
         {t('Home')}
       </button>
       <button className="scanbtn" aria-label={t('Scan a receipt')} onClick={() => go({ name: 'scan' })}>
-        <Icon name="camera" size={38} />
+        <Icon name="camera" size={46} />
       </button>
       <button className={`tab${active === 'records' ? ' on' : ''}`} aria-current={active === 'records' ? 'page' : undefined} onClick={() => tab({ name: 'records' })}>
         <Icon name="list" size={24} soft={active === 'records'} />
