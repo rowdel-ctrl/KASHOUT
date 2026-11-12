@@ -540,3 +540,37 @@ body:has(.scan)::before, body:has(.viewer)::before { background: #14110D; }
 h1, h2, h3, .h1, .topbar h1, .sheet h2, .stat b, .rec .ref, .rec .amt, .bigref, .box.big, .hero b, .sheet-head b, .btn-primary { font-family: var(--head); font-weight: 800; }
 .muted { font-weight: 500; }
 .field > label, .field > .lab { font-weight: 600; }
+
+/* ---------- redesign: Home, rows ---------- */
+.tiles { display: flex; gap: 12px; }
+.tile { flex: 1; background: var(--card); border-radius: 22px; padding: 14px 16px; box-shadow: var(--shadow); min-width: 0; }
+.tile.main { flex: 1.4; }
+.tile small { display: block; font-size: 13px; font-weight: 500; color: var(--muted); }
+.tile b { display: block; font-family: var(--head); font-size: 26px; font-weight: 800; margin-top: 2px; white-space: nowrap; }
+.tile.main b { font-size: 32px; color: var(--green); }
+.pendingbar { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 16px; border-radius: 18px; background: var(--warn-bg); border: 1.5px solid var(--amber); color: var(--warn-text); text-align: left; font-size: 14px; font-weight: 600; }
+.pendingbar b { flex: 1; font-size: 15.5px; font-weight: 600; }
+.draftcard { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 22px; background: var(--card); border: 1.5px solid var(--field); color: var(--ink); }
+.draftcard b { font-family: var(--head); font-size: 16px; font-weight: 800; }
+.draftcard > span { font-size: 13.5px; font-weight: 500; color: var(--muted); }
+.draftcard .two { margin-top: 6px; }
+.draftcard .btn { height: 46px; font-size: 15px; box-shadow: none; }
+.updatebar { display: flex; align-items: center; gap: 8px; padding: 10px 12px 10px 14px; border-radius: 18px; background: var(--green-soft); color: var(--green-text); }
+.updatebar b { flex: 1; font-size: 15px; font-weight: 600; }
+.updatebar .later { border: 0; background: none; padding: 8px 6px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.updatebar .go { height: 36px; padding: 0 16px; border-radius: 999px; border: 0; background: var(--green); color: var(--on-green); font-size: 14px; font-weight: 600; }
+.emptybox { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 34px 30px; text-align: center; }
+.emptybox .art { width: 110px; height: 110px; border-radius: 36px; background: var(--green-soft); color: var(--green); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+.emptybox b { font-family: var(--head); font-size: 19px; font-weight: 800; }
+.emptybox span { font-size: 14.5px; color: var(--muted); font-weight: 500; }
+
+.rec .av { position: relative; font-family: var(--head); font-size: 16px; }
+.rec .av .wd { position: absolute; right: -3px; bottom: -3px; width: 14px; height: 14px; border-radius: 50%; border: 2.5px solid var(--card); }
+.rec.pending .av .wd { border-color: var(--warn-bg); }
+.rec .ref { font-size: 17px; font-weight: 800; }
+.rec .sub { font-weight: 500; font-size: 13.5px; }
+.rec .right .amt { font-size: 19px; font-weight: 800; }
+.rec .right .when { font-size: 13px; font-weight: 500; }
+.rec .tag { font-weight: 600; }
+.rec .ref { font-size: 16.5px; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rec .tag { font-size: 11.5px; padding: 0 8px; height: 22px; }

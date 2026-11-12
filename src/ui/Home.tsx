@@ -1,20 +1,18 @@
 import { formatRef, parseMoney, peso, peso2, waitText } from '../lib/format';
-import { LATE_MS, applyFilters, summarize } from '../lib/records';
+import { applyFilters, summarize } from '../lib/records';
 import { DEFAULT_FILTERS } from '../lib/types';
+import { sourceOf } from '../lib/wallets';
 import { Icon } from './icons';
 import { NavBar, RecRow } from './components';
 import { useApp } from './context';
 
 export function Home() {
-  const { user, records, syncLabel, go, tab, undo, undoSave, markPaid, t, settings, unsaved, resumeDraft, dropDraft, keepDraft, toast, update, downloadUpdate, laterUpdate } = useApp();
+  const { user, records, syncLabel, go, tab, undo, undoSave, t, settings, unsaved, resumeDraft, dropDraft, keepDraft, toast, update, downloadUpdate, laterUpdate } = useApp();
   const tl = settings.lang === 'tl';
-  // Paid today: cash that went out today. Pending records are counted apart.
-  const day = summarize(applyFilters(records, { ...DEFAULT_FILTERS, period: 'today' }));
+  // Cash-out is the cash that went out today. Pending records are counted apart.
+  const todayList = applyFilters(records, { ...DEFAULT_FILTERS, period: 'today' });
+  const day = summarize(todayList);
   const waiting = summarize(applyFilters(records, { ...DEFAULT_FILTERS, status: 'pending' }));
-  const waited = waiting.oldestPending != null ? Date.now() - waiting.oldestPending : 0;
-  const total = day.total;
-  const fees = day.fees;
-  const latest = records.slice(0, 5);
 
   return (
     <>
@@ -41,38 +39,23 @@ export function Home() {
 
         <div className="home-grid">
           <div className="left">
-            <button className="hero" onClick={() => go({ name: 'scan' })}>
-              <span className="ring">
-                <Icon name="camera" size={42} />
-              </span>
-              <b>{t('Record a cash-out')}</b>
-              <span>{t('Take a photo or pick a screenshot')}</span>
-            </button>
-            {update && (
-              <div className="updatecard" role="status">
-                <b>{t('New version available')}</b>
-                <span>{t('Version {version} is ready. Download it to get the latest fixes.', { version: update.version })}</span>
-                <small>{t('After the download, tap the file to install. Your records stay.')}</small>
-                <div className="two">
-                  <button className="btn btn-primary" onClick={downloadUpdate}>
-                    {t('Download')}
-                  </button>
-                  <button className="btn btn-ghost" onClick={laterUpdate}>
-                    {t('Later')}
-                  </button>
-                </div>
+            <div className="tiles">
+              <div className="tile main">
+                <small>{t('Cash-out')}</small>
+                <b>{peso(day.total)}</b>
               </div>
-            )}
+              <div className="tile">
+                <small>{t('Charge')}</small>
+                <b>{peso(day.fees)}</b>
+              </div>
+            </div>
             {unsaved && (
               <div className="draftcard" role="status">
                 <b>{t('You have a scan that is not saved')}</b>
                 <span>
-                  {peso2(parseMoney(unsaved.draft.amount))} · {formatRef(unsaved.draft.ref)} · {t('{time} ago', { time: waitText(Date.now() - unsaved.at, tl) })}
+                  {peso2(parseMoney(unsaved.draft.amount))} · {unsaved.draft.source || 'GCash'} · {formatRef(unsaved.draft.ref)} · {t('{time} ago', { time: waitText(Date.now() - unsaved.at, tl) })}
                 </span>
                 <div className="two">
-                  <button className="btn btn-primary" onClick={resumeDraft}>
-                    {t('Continue')}
-                  </button>
                   <button
                     className="btn btn-ghost"
                     onClick={() => {
@@ -83,51 +66,50 @@ export function Home() {
                   >
                     {t('Discard')}
                   </button>
+                  <button className="btn btn-primary" onClick={resumeDraft}>
+                    {t('Continue')}
+                  </button>
                 </div>
               </div>
             )}
             {waiting.pendingCount > 0 && (
-              <button className="pendingcard" onClick={() => tab({ name: 'records', status: 'pending' })}>
-                <span className="ic">
-                  <Icon name="clock" size={24} />
-                </span>
-                <span>
-                  <b>{t('{n} pending', { n: waiting.pendingCount })}</b>
-                  <span>
-                    {peso2(waiting.pendingTotal)} · {t('oldest')} {waited >= LATE_MS ? <em>{waitText(waited, tl)}</em> : waitText(waited, tl)}
-                  </span>
-                </span>
-                <span className="see">{t('See')}</span>
+              <button className="pendingbar" onClick={() => tab({ name: 'records', status: 'pending' })}>
+                <b>
+                  {t('{n} pending', { n: waiting.pendingCount })} · {peso(waiting.pendingTotal)}
+                </b>
+                <span>{t('See')}</span>
               </button>
             )}
-            <div className="stats">
-              <div className="stat">
-                <small>{t('Paid today')}</small>
-                <b>{peso(total)}</b>
-                <span>{t('{n} cash-outs', { n: day.count })}</span>
+            {update && (
+              <div className="updatebar" role="status">
+                <b>{t('New version available')}</b>
+                <button className="later" onClick={laterUpdate}>
+                  {t('Later')}
+                </button>
+                <button className="go" onClick={downloadUpdate}>
+                  {t('Update')}
+                </button>
               </div>
-              <div className="stat">
-                <small>{t('Charge')}</small>
-                <b>{peso2(fees)}</b>
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="right">
-            <div className="row-between" style={{ margin: '4px 0 8px' }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800 }}>{t('Recent')}</h2>
-              <button className="link" style={{ background: 'none', border: 0, minHeight: 44, color: 'var(--green-text)', fontSize: 15, fontWeight: 800 }} onClick={() => tab({ name: 'records' })}>
-                {t('See all')}
-              </button>
+            <div className="row-between" style={{ margin: '4px 4px 8px' }}>
+              <h2 style={{ fontSize: 18 }}>{t('Today')}</h2>
+              <span className="muted small">{t('{n} records', { n: todayList.length })}</span>
             </div>
-            {latest.length === 0 ? (
-              <div className="hint">{t('Nothing recorded yet. Tap the green button, take a photo of the GCash receipt, and save it.')}</div>
+            {todayList.length === 0 ? (
+              <div className="emptybox">
+                <div className="art">
+                  <Icon name="camera" size={54} />
+                </div>
+                <b>{t('No cash-out yet today')}</b>
+                <span>{t('Tap the round button to scan.')}</span>
+              </div>
             ) : (
               <div className="list">
-                {latest.map((r, i) => (
-                  <div key={r.id} className={i >= 3 ? 'hide-narrow' : undefined}>
-                    <RecRow r={r} fresh={undo?.id === r.id} onClick={() => go({ name: 'detail', id: r.id })} onMarkPaid={() => markPaid(r)} />
-                  </div>
+                {todayList.map((r) => (
+                  <RecRow key={r.id} r={r} fresh={undo?.id === r.id} onClick={() => go({ name: 'detail', id: r.id })} />
                 ))}
               </div>
             )}

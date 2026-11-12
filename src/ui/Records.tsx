@@ -71,7 +71,6 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
       r={r}
       selected={wide && sel?.id === r.id}
       q={searching ? q : undefined}
-      onMarkPaid={() => markPaid(r)}
       onClick={() => (wide ? setSelected(r.id) : go({ name: 'detail', id: r.id }))}
     />
   );

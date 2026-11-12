@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { formatRef, peso2, timeOf, waitText } from '../lib/format';
+import { formatRef, peso, timeOf } from '../lib/format';
 import { LATE_MS, highlight, highlightRef, isPending, matchRecord, whenOf } from '../lib/records';
-import type { CashRecord, Route } from '../lib/types';
+import type { CashRecord } from '../lib/types';
+import { sourceOf, walletColor } from '../lib/wallets';
 import { useApp } from './context';
 import { Icon } from './icons';
 
@@ -109,19 +110,20 @@ function Hl({ text, q }: { text: string; q?: string }) {
   );
 }
 
-export function RecRow({ r, onClick, fresh, selected, q, onMarkPaid }: { r: CashRecord; onClick?: () => void; fresh?: boolean; selected?: boolean; q?: string; onMarkPaid?: () => void }) {
+export function RecRow({ r, onClick, fresh, selected, q }: { r: CashRecord; onClick?: () => void; fresh?: boolean; selected?: boolean; q?: string }) {
   const green = r.ref.charCodeAt(r.ref.length - 1) % 2 === 0;
   const field = q ? matchRecord(r, q) : null;
-  const amountText = peso2(r.amount);
+  const amountText = peso(r.amount);
   const pending = isPending(r);
-  const waited = Date.now() - r.savedAt;
-  const late = pending && waited >= LATE_MS;
-  const { t, settings } = useApp();
-  const tl = settings.lang === 'tl';
-  const quick = pending && !!onMarkPaid && !!onClick;
-  const main = (
+  const late = pending && Date.now() - r.savedAt >= LATE_MS;
+  const { t } = useApp();
+  const source = sourceOf(r);
+  const inner = (
     <>
-      <span className={`av${green ? ' g' : ''}`}>{initials(r.name)}</span>
+      <span className={`av${green ? ' g' : ''}`}>
+        {initials(r.name)}
+        <i className="wd" style={{ background: walletColor(source) }} title={source} />
+      </span>
       <span className="mid">
         <div className="ref">
           {q && field === 'ref'
@@ -137,40 +139,13 @@ export function RecRow({ r, onClick, fresh, selected, q, onMarkPaid }: { r: Cash
           </div>
         )}
       </span>
-    </>
-  );
-  const amountBlock = (
-    <>
-      <div className="amt">{field === 'amount' ? <mark>{amountText}</mark> : amountText}</div>
-      {pending ? (
-        <div className={`tag${late ? ' late' : ''}`}>{late ? `${waitText(waited, tl)} · ${t('late')}` : waitText(waited, tl)}</div>
-      ) : (
-        <div className="when">{timeOf(whenOf(r))}</div>
-      )}
-    </>
-  );
-  const right = <span className="right">{amountBlock}</span>;
-  const inner = (
-    <>
-      {main}
-      {right}
+      <span className="right">
+        <div className="amt">{field === 'amount' ? <mark>{amountText}</mark> : amountText}</div>
+        {pending ? <div className={`tag${late ? ' late' : ''}`}>{t('Pending')}</div> : <div className="when">{timeOf(whenOf(r))}</div>}
+      </span>
     </>
   );
   const cls = `rec${fresh ? ' new' : ''}${selected ? ' sel' : ''}${pending ? ' pending' : ''}${late ? ' late' : ''}`;
-  // A row with its own Mark paid button cannot be one big button, so only the left part is.
-  if (quick) {
-    return (
-      <div className={`${cls} quick`}>
-        <button className="recmain" onClick={onClick} aria-pressed={selected}>
-          {main}
-        </button>
-        {right}
-        <button className="markpaid" aria-label={t('Mark {amount} as paid', { amount: peso2(r.amount) })} onClick={onMarkPaid}>
-          {t('Mark paid')}
-        </button>
-      </div>
-    );
-  }
   return onClick ? (
     <button className={cls} onClick={onClick} aria-pressed={selected}>
       {inner}
