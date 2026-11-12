@@ -9,7 +9,7 @@ import { Sheet, TopBar, WarnBar } from './components';
 import { useApp } from './context';
 
 export function Review({ initial }: { initial: Draft }) {
-  const { settings, fees, records, saveDraft, tab } = useApp();
+  const { settings, fees, records, saveDraft, tab, go } = useApp();
   const [d, setD] = useState<Draft>(initial);
   const [dup, setDup] = useState<CashRecord | null>(null);
   const [saveAs, setSaveAs] = useState<'paid' | 'pending'>('paid');
@@ -228,11 +228,22 @@ export function Review({ initial }: { initial: Draft }) {
             </div>
           </div>
           <div className="stack" style={{ marginTop: 16 }}>
-            <button className="btn btn-primary" onClick={() => tab({ name: 'home' })}>
-              Don't save
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                // Open the record that already has this reference. Back goes home.
+                setDup(null);
+                tab({ name: 'home' });
+                go({ name: 'detail', id: dup.id });
+              }}
+            >
+              Show saved record
             </button>
             <button className="btn btn-danger" onClick={() => saveDraft({ ...d, ref: refDigits }, true, saveAs)}>
               This is different. Save anyway
+            </button>
+            <button className="btn btn-text" onClick={() => setDup(null)}>
+              Cancel
             </button>
           </div>
         </Sheet>
