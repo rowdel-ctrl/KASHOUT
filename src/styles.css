@@ -672,3 +672,8 @@ h1, h2, h3, .h1, .topbar h1, .sheet h2, .stat b, .rec .ref, .rec .amt, .bigref, 
 .tile:not(.main) { background: #F6C453; color: #3A2A00; box-shadow: 0 8px 18px rgba(224, 162, 42, .32); }
 .tile:not(.main) small { color: #5C4300; }
 .tile:not(.main) b { color: #3A2A00; }
+
+/* the logo carries its own colours */
+.logo { width: 104px; height: 104px; border-radius: 0; background: none; box-shadow: none; }
+.logo svg { border-radius: 25px; box-shadow: 0 14px 30px var(--green-shadow); }
+.gbtn { font-size: 16px; font-weight: 600; }

@@ -1,0 +1,15 @@
+/** The Kashawt logo: a tilted receipt with a gold check, on dark green. Source: design/logo.svg */
+export function Logo({ size = 96 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label="Kashawt">
+      <rect width="100" height="100" rx="24" fill="#0B5C30" />
+      <g transform="rotate(-8 50 50)">
+        <path d="M28 16H72Q76 16 76 20V80L69.5 85.5L63 80L56.5 85.5L50 80L43.5 85.5L37 80L30.5 85.5L24 80V20Q24 16 28 16Z" fill="#FFFFFF" />
+        <rect x="33" y="27" width="34" height="5" rx="2.5" fill="#CFE6D8" />
+        <rect x="33" y="37" width="22" height="5" rx="2.5" fill="#CFE6D8" />
+      </g>
+      <circle cx="70" cy="66" r="15" fill="#F6C453" />
+      <path d="M62.5 66.5L68 72L78 60" fill="none" stroke="#3A2A00" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

@@ -4,6 +4,7 @@ import type { AppUser, Settings } from '../lib/types';
 import { isDarkNow, syncBars } from '../native/bars';
 import { loadSettings, saveSettings } from '../native/storage';
 import { Icon } from './icons';
+import { Logo } from './Logo';
 import { translate, type T } from '../lib/i18n';
 import { AppProvider, useApp } from './context';
 import { Home } from './Home';
@@ -131,7 +132,7 @@ function Login({ t }: { t: T }) {
   return (
     <div className="center login">
       <div className="logo">
-        <Icon name="camera" size={58} />
+        <Logo size={104} />
       </div>
       <h1>Kashawt</h1>
       <p>{t('Record every GCash cash-out. Nothing paid twice.')}</p>
