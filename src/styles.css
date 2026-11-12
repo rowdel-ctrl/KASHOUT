@@ -24,8 +24,10 @@
   --shadow: 0 2px 8px rgba(29, 27, 22, .06);
   --nav-bg: #FFFFFF;
   --backdrop: rgba(20, 17, 13, .5);
-  --top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
-  --bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+  /* Only the values the app injects from the real window insets. env() is not used: on some phones it
+     reports the navigation bar even when the web view already sits above it, which left a big gap. */
+  --top: var(--safe-area-inset-top, 0px);
+  --bottom: var(--safe-area-inset-bottom, 0px);
   color-scheme: light;
 }
 
@@ -537,3 +539,12 @@ html[data-theme='dark'] .draftcard { --blue-bg: #1B2A3D; --blue-line: #4A86D6; -
 /* Google button: the icon sits in the text line, so wrapped text stays centred under it */
 .gbtn { display: block; }
 .gbtn svg { display: inline-block; vertical-align: -5px; margin-right: 10px; }
+
+/* Titles break evenly ("Mag-record ng / cash-out"), and references shrink a little on narrow phones */
+.hero b, .h1, .saved h1, .login h1 { text-wrap: balance; }
+.rec .ref { font-size: clamp(15px, 4.3vw, 17px); }
+
+/* Bigger touch areas without changing how things look */
+.rtabs button { min-width: 48px; }
+.switch { position: relative; }
+.switch::after { content: ''; position: absolute; inset: -8px -4px; }
