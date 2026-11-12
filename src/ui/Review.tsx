@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { feeFor, tierLabel } from '../lib/fees';
-import { dateTime, fromLocalInput, parseMoney, peso, peso2, toLocalInput } from '../lib/format';
+import { dateTime, formatRef, fromLocalInput, parseMoney, peso, peso2, toLocalInput } from '../lib/format';
 import { reviewWarnings } from '../lib/warnings';
 import type { CashRecord, Draft } from '../lib/types';
 import { Icon } from './icons';
@@ -203,7 +203,7 @@ export function Review({ initial }: { initial: Draft }) {
           </div>
           <div className="card" style={{ boxShadow: 'none', background: 'var(--bg)' }}>
             <div className="muted small">Reference number</div>
-            <div className="bigref">{dup.ref}</div>
+            <div className="bigref">{formatRef(dup.ref)}</div>
             <div className="kv">
               <span>Saved by</span>
               <b>{dup.by}</b>

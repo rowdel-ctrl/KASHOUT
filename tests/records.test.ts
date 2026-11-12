@@ -242,3 +242,28 @@ describe('the store\'s own name and number', () => {
     expect(known.names).toEqual(['AUNT A.']);
   });
 });
+
+import { formatRef } from '../src/lib/format';
+import { highlightRef } from '../src/lib/records';
+
+describe('grouped reference', () => {
+  it('groups 13 digits as 4-4-5 and leaves other values alone', () => {
+    expect(formatRef('0046276076549')).toBe('0046 2760 76549');
+    expect(formatRef('9047 0226 65601')).toBe('9047 0226 65601');
+    expect(formatRef('1234')).toBe('1234');
+    expect(formatRef('')).toBe('');
+  });
+
+  it('marks the typed digits in the grouped reference', () => {
+    expect(highlightRef('0046276076549', '76549')).toEqual([{ t: '0046 2760 ', hit: false }, { t: '76549', hit: true }]);
+    expect(highlightRef('0046276076549', '0046')).toEqual([{ t: '0046', hit: true }, { t: ' 2760 76549', hit: false }]);
+  });
+
+  it('marks across a space between groups', () => {
+    expect(highlightRef('0046276076549', '276076')).toEqual([{ t: '0046 ', hit: false }, { t: '2760 76', hit: true }, { t: '549', hit: false }]);
+  });
+
+  it('shows the plain reference when nothing matches', () => {
+    expect(highlightRef('0046276076549', '999')).toEqual([{ t: '0046 2760 76549', hit: false }]);
+  });
+});

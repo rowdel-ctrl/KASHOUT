@@ -397,3 +397,12 @@ mark { background: var(--warn-bg); color: inherit; border-radius: 4px; padding: 
 .searchnote { margin: 12px 4px 0; display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; color: var(--green-text); }
 .chip.dim { opacity: .45; }
 .rec .ext { font-size: 14px; font-weight: 800; color: var(--ink); letter-spacing: .3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* record row: initials, reference and name on the left, amount and time on the right */
+.rec .ref { font-size: 17px; font-weight: 800; letter-spacing: .3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rec .right { flex: none; text-align: right; }
+.rec .right .amt { font-size: 19px; font-weight: 800; white-space: nowrap; }
+.rec .right .when { margin-top: 2px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.rec .av { width: 42px; height: 42px; }
+
+.search input[type='search']::-webkit-search-cancel-button, .search input[type='search']::-webkit-search-decoration { -webkit-appearance: none; appearance: none; display: none; }

@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
-import { peso2, timeOf } from '../lib/format';
-import { highlight, matchRecord } from '../lib/records';
+import { formatRef, peso2, timeOf } from '../lib/format';
+import { highlight, highlightRef, matchRecord } from '../lib/records';
 import type { CashRecord, Route } from '../lib/types';
 import { useApp } from './context';
 import { Icon } from './icons';
@@ -119,22 +119,24 @@ export function RecRow({ r, onClick, fresh, selected, q }: { r: CashRecord; onCl
     <>
       <span className={`av${green ? ' g' : ''}`}>{initials(r.name)}</span>
       <span className="mid">
-        <div className="amt">{field === 'amount' ? <mark>{amountText}</mark> : amountText}</div>
+        <div className="ref">
+          {q && field === 'ref'
+            ? highlightRef(r.ref, q).map((p, i) => (p.hit ? <mark key={i}>{p.t}</mark> : <span key={i}>{p.t}</span>))
+            : formatRef(r.ref)}
+        </div>
         <div className="sub">
           <Hl text={r.name || 'No name'} q={field === 'name' ? q : undefined} /> · <Hl text={r.by} q={field === 'staff' ? q : undefined} />
         </div>
-        {field === 'ref' && q && (
-          <div className="ext">
-            Ref <Hl text={r.ref} q={q.replace(/\s+/g, '')} />
-          </div>
-        )}
         {field === 'number' && q && (
           <div className="ext">
             <Hl text={r.number} q={q.replace(/\s+/g, '')} />
           </div>
         )}
       </span>
-      <span className="when">{timeOf(r.savedAt)}</span>
+      <span className="right">
+        <div className="amt">{field === 'amount' ? <mark>{amountText}</mark> : amountText}</div>
+        <div className="when">{timeOf(r.savedAt)}</div>
+      </span>
     </>
   );
   const cls = `rec${fresh ? ' new' : ''}${selected ? ' sel' : ''}`;

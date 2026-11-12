@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { api } from '../data';
 import { shareCsv, sharePdf } from '../lib/export';
-import { dateTime, peso, peso2 } from '../lib/format';
+import { dateTime, formatRef, peso, peso2 } from '../lib/format';
 import { activeFilterCount, applyFilters, periodLabel, staffNames, summarize } from '../lib/records';
 import { DEFAULT_FILTERS, type AmountBand, type Filters, type Period } from '../lib/types';
 import { sendNtfy } from '../native/alerts';
@@ -151,7 +151,7 @@ export function Records({ initialPeriod }: { initialPeriod?: Period }) {
                   <small>Closing · {label}</small>
                   <b className="t">{peso(sum.total)}</b>
                   <span className="sub">
-                    {sum.count} cash-outs · Fees {peso2(sum.fees)}
+                    {sum.count} {sum.count === 1 ? 'cash-out' : 'cash-outs'} · Fees {peso2(sum.fees)}
                   </span>
                 </div>
                 <button className="round" style={{ background: 'var(--green-soft)', color: 'var(--green-text)', boxShadow: 'none' }} aria-expanded={showWho} aria-label="Who saved" onClick={() => setShowWho(!showWho)}>
@@ -336,7 +336,7 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
       <div>
         <div className="muted small">Reference number</div>
         <div className="bigref" style={{ fontSize: 26 }}>
-          {r.ref}
+          {formatRef(r.ref)}
         </div>
       </div>
       <div className="kvs">

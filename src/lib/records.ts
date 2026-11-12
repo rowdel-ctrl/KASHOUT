@@ -1,4 +1,4 @@
-import { dayKey } from './format';
+import { dayKey, formatRef } from './format';
 import type { AmountBand, CashRecord, Filters, Period } from './types';
 
 const DAY = 86_400_000;
@@ -85,6 +85,26 @@ export function applyFilters(records: CashRecord[], f: Filters, now: number = Da
 
   const { from, to } = periodRange(f, now);
   return records.filter((r) => (from == null || r.savedAt >= from) && (to == null || r.savedAt < to) && byAmountStaff(r));
+}
+
+/** The grouped reference with the typed digits marked, even when they run across a space. */
+export function highlightRef(ref: string, q: string): { t: string; hit: boolean }[] {
+  const grouped = formatRef(ref);
+  const needle = q.replace(/\s+/g, '');
+  const start = needle ? ref.indexOf(needle) : -1;
+  if (start < 0) return [{ t: grouped, hit: false }];
+  const end = start + needle.length;
+  const out: { t: string; hit: boolean }[] = [];
+  let digits = 0;
+  for (const ch of grouped) {
+    const isDigit = /\d/.test(ch);
+    const hit = isDigit ? digits >= start && digits < end : digits - 1 >= start && digits < end;
+    if (isDigit) digits += 1;
+    const last = out[out.length - 1];
+    if (last && last.hit === hit) last.t += ch;
+    else out.push({ t: ch, hit });
+  }
+  return out;
 }
 
 /** Splits text into pieces, marking the parts that match the search text. */

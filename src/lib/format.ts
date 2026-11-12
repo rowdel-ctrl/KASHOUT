@@ -51,3 +51,9 @@ export function parseMoney(s: string): number {
   const n = Number(String(s).replace(/[^\d.]/g, ''));
   return Number.isFinite(n) ? n : 0;
 }
+
+/** 13-digit references are shown in groups of 4, 4 and 5 so they are easy to compare: 0046 2760 76549. */
+export function formatRef(ref: string): string {
+  const d = ref.replace(/\s+/g, '');
+  return /^\d{13}$/.test(d) ? `${d.slice(0, 4)} ${d.slice(4, 8)} ${d.slice(8)}` : ref;
+}
