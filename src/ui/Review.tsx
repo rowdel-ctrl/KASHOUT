@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { feeFor, tierLabel } from '../lib/fees';
 import { dateTime, formatRef, fromLocalInput, parseMoney, peso, peso2, toLocalInput } from '../lib/format';
 import { reviewWarnings } from '../lib/warnings';
+import { isPending } from '../lib/records';
 import type { CashRecord, Draft } from '../lib/types';
 import { Icon } from './icons';
 import { PhotoViewer } from './PhotoViewer';
@@ -9,7 +10,7 @@ import { Sheet, TopBar, WarnBar } from './components';
 import { useApp } from './context';
 
 export function Review({ initial }: { initial: Draft }) {
-  const { settings, fees, records, saveDraft, tab, go } = useApp();
+  const { settings, fees, records, saveDraft, markPaid, tab, go } = useApp();
   const [d, setD] = useState<Draft>(initial);
   const [dup, setDup] = useState<CashRecord | null>(null);
   const [saveAs, setSaveAs] = useState<'paid' | 'pending'>('paid');
@@ -207,9 +208,11 @@ export function Review({ initial }: { initial: Draft }) {
       )}
 
       {dup && (
-        <Sheet title="Already saved" onClose={() => setDup(null)}>
+        <Sheet title={isPending(dup) ? 'Waiting for cash' : 'Already saved'} onClose={() => setDup(null)}>
           <div className="muted" style={{ marginTop: -6, marginBottom: 14, fontSize: 16 }}>
-            This may be paid out twice.
+            {isPending(dup)
+              ? 'This one was saved as pending. If the cash is given now, mark it as paid.'
+              : 'This may be paid out twice.'}
           </div>
           <div className="card" style={{ boxShadow: 'none', background: 'var(--bg)' }}>
             <div className="muted small">Reference number</div>
@@ -226,10 +229,27 @@ export function Review({ initial }: { initial: Draft }) {
               <span>Amount</span>
               <b>{peso2(dup.amount)}</b>
             </div>
+            <div className="kv">
+              <span>Status</span>
+              <b style={isPending(dup) ? { color: 'var(--warn-text)' } : undefined}>{isPending(dup) ? 'Pending' : 'Paid'}</b>
+            </div>
           </div>
           <div className="stack" style={{ marginTop: 16 }}>
+            {isPending(dup) ? (
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  // Give the cash now: mark the pending record as paid and go home.
+                  markPaid(dup);
+                  setDup(null);
+                  tab({ name: 'home' });
+                }}
+              >
+                Mark as paid
+              </button>
+            ) : null}
             <button
-              className="btn btn-primary"
+              className={isPending(dup) ? 'btn btn-ghost' : 'btn btn-primary'}
               onClick={() => {
                 // Open the record that already has this reference. Back goes home.
                 setDup(null);
