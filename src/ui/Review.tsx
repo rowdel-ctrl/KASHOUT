@@ -4,6 +4,7 @@ import { dateTime, formatRef, fromLocalInput, parseMoney, peso, peso2, toLocalIn
 import { nameForNumber } from '../lib/identity';
 import { reviewWarnings } from '../lib/warnings';
 import { isPending } from '../lib/records';
+import { isMeaningful } from '../native/draftStore';
 import type { CashRecord, Draft } from '../lib/types';
 import { Icon } from './icons';
 import { PhotoViewer } from './PhotoViewer';
@@ -11,7 +12,7 @@ import { Sheet, TopBar, WarnBar } from './components';
 import { useApp } from './context';
 
 export function Review({ initial }: { initial: Draft }) {
-  const { settings, fees, records, saveDraft, markPaid, tab, go } = useApp();
+  const { settings, fees, records, saveDraft, markPaid, tab, go, t, keepDraft, dropDraft, setLeaveGuard } = useApp();
   const [d, setD] = useState<Draft>(initial);
   const [dup, setDup] = useState<CashRecord | null>(null);
   const [saveAs, setSaveAs] = useState<'paid' | 'pending'>('paid');
@@ -19,6 +20,7 @@ export function Review({ initial }: { initial: Draft }) {
   const [viewing, setViewing] = useState(false);
   // "This is different": the person says the saved record with this reference is another cash-out.
   const [differs, setDiffers] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const nameTouched = useRef(false);
 
   const refDigits = d.ref.replace(/\s+/g, '');
@@ -29,7 +31,7 @@ export function Review({ initial }: { initial: Draft }) {
   const canSave = refDigits.length > 0 && amount > 0;
   const autoFee = feeFor(amount, fees);
   const feeNum = parseMoney(d.fee);
-  const photo = d.photoUrl ?? d.thumb;
+  const photo = d.photoUrl ?? d.photo ?? d.thumb;
   // Same reference as a record that is already saved. Shown at once, before Save.
   const dupNow = refDigits ? records.find((r) => r.ref === refDigits) : undefined;
   const showDup = !!dupNow && !differs;
@@ -39,6 +41,33 @@ export function Review({ initial }: { initial: Draft }) {
   useEffect(() => {
     if (known && !d.name && !nameTouched.current) setD((p) => (p.name ? p : { ...p, name: known, autoName: true }));
   }, [known, d.name]);
+
+  // Keep what was read on this phone, so a scan is not lost if the person forgets to save.
+  useEffect(() => {
+    if (!isMeaningful(d)) return;
+    const id = window.setTimeout(() => keepDraft(d), 800);
+    return () => window.clearTimeout(id);
+  }, [d, keepDraft]);
+
+  // Back (the button or the phone's Back) asks first when there is something to lose.
+  const meaningful = isMeaningful(d);
+  const meaningfulRef = useRef(meaningful);
+  meaningfulRef.current = meaningful;
+  const leavingRef = useRef(leaving);
+  leavingRef.current = leaving;
+  useEffect(() => {
+    setLeaveGuard(() => {
+      if (leavingRef.current) {
+        setLeaving(false);
+        return true;
+      }
+      if (!meaningfulRef.current) return false;
+      setLeaving(true);
+      return true;
+    });
+    return () => setLeaveGuard(null);
+  }, [setLeaveGuard]);
+  const requestLeave = () => (meaningful ? setLeaving(true) : tab({ name: 'home' }));
 
   function setAmount(v: string) {
     setD((p) => {
@@ -58,16 +87,29 @@ export function Review({ initial }: { initial: Draft }) {
     else saveDraft({ ...d, ref: refDigits }, differs, status);
   }
 
+  const showSaved = (r: CashRecord) => {
+    // Open the record that already has this reference. Back goes home.
+    dropDraft();
+    tab({ name: 'home' });
+    go({ name: 'detail', id: r.id });
+  };
+  const payNow = (r: CashRecord) => {
+    // Give the cash now: mark the pending record as paid and go home.
+    dropDraft();
+    markPaid(r);
+    tab({ name: 'home' });
+  };
+
   return (
     <>
       <main className="page review">
-        <TopBar title="Check and save" />
+        <TopBar title={t('Check and save')} onBack={requestLeave} />
 
         {showDup && dupNow && (
           <div className="dupbanner" role="alert">
-            <b>{isPending(dupNow) ? 'Waiting for cash' : 'Already saved. This may be paid twice.'}</b>
+            <b>{isPending(dupNow) ? t('Waiting for cash') : t('Already saved. This may be paid twice.')}</b>
             <span>
-              {isPending(dupNow) ? 'Pending' : 'Paid'} · {peso2(dupNow.amount)} · {dupNow.by} · {dateTime(dupNow.savedAt)}
+              {isPending(dupNow) ? t('Pending') : t('Paid')} · {peso2(dupNow.amount)} · {dupNow.by} · {dateTime(dupNow.savedAt)}
             </span>
           </div>
         )}
@@ -75,16 +117,16 @@ export function Review({ initial }: { initial: Draft }) {
         <div className="photo-card">
           {photo ? <img className="thumb" src={d.thumb ?? photo} alt="" /> : <div className="thumb" aria-hidden="true" />}
           <div>
-            <b>{photo ? 'We read this from your photo' : 'Type the receipt details'}</b>
-            <p>{photo ? 'Check each box. Tap one to fix it.' : 'Copy them from the GCash receipt.'}</p>
+            <b>{photo ? t('We read this from your photo') : t('Type the receipt details')}</b>
+            <p>{photo ? t('Check each box. Tap one to fix it.') : t('Copy them from the GCash receipt.')}</p>
             {photo && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button className="link" onClick={() => setViewing(true)}>
-                  View photo
+                  {t('View photo')}
                 </button>
                 {d.rawText !== undefined && (
                   <button className="link" onClick={() => setSheet('read')}>
-                    What the app read
+                    {t('What the app read')}
                   </button>
                 )}
               </div>
@@ -93,40 +135,40 @@ export function Review({ initial }: { initial: Draft }) {
         </div>
 
         <div className="field">
-          <label htmlFor="ref">Reference number</label>
+          <label htmlFor="ref">{t('Reference number')}</label>
           <input id="ref" className={`box big ${refOk ? 'ok' : 'warn'}`} inputMode="numeric" autoComplete="off" value={d.ref} onChange={(e) => setD({ ...d, ref: e.target.value })} />
-          <div className={`note${refOk ? ' good' : ''}`}>{refOk ? '13 digits ✓' : `${refDigits.length} digits. It should be 13.`}</div>
+          <div className={`note${refOk ? ' good' : ''}`}>{refOk ? t('13 digits ✓') : t('{n} digits. It should be 13.', { n: refDigits.length })}</div>
         </div>
 
         <div className="two">
           <div className="field">
-            <label htmlFor="amt">Amount</label>
+            <label htmlFor="amt">{t('Amount')}</label>
             <input id="amt" className={`box big${has('big') ? ' warn' : ''}`} inputMode="decimal" autoComplete="off" value={d.amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
           <div className="field">
-            <span className="lab">Fee</span>
-            <button className="box big" aria-haspopup="dialog" aria-label={`Fee ${peso2(feeNum)}. Change`} onClick={() => setSheet('fee')}>
+            <span className="lab">{t('Fee')}</span>
+            <button className="box big" aria-haspopup="dialog" aria-label={t('Fee {amount}. Change', { amount: peso2(feeNum) })} onClick={() => setSheet('fee')}>
               <span>{d.fee ? peso(feeNum) : '—'}</span>
               <Icon name="down" size={18} />
             </button>
           </div>
         </div>
-        {has('big') && <div className="note">Above your {peso(settings.bigLimit)} limit</div>}
+        {has('big') && <div className="note">{t('Above your {limit} limit', { limit: peso(settings.bigLimit) })}</div>}
 
         <div className="field">
-          <label htmlFor="dt">Date and time</label>
+          <label htmlFor="dt">{t('Date and time')}</label>
           <input id="dt" type="datetime-local" className={`box${has('old') || has('date') ? ' warn' : ''}`} value={toLocalInput(d.txAt)} onChange={(e) => setD({ ...d, txAt: fromLocalInput(e.target.value) })} />
-          {has('old') && <div className="note">This receipt is not from today</div>}
-          {has('date') && <div className="note">The date is missing. Please set it.</div>}
+          {has('old') && <div className="note">{t('This receipt is not from today')}</div>}
+          {has('date') && <div className="note">{t('The date is missing. Please set it.')}</div>}
         </div>
 
         <div className="field">
-          <span className="lab">Customer</span>
+          <span className="lab">{t('Customer')}</span>
           <button className="box" aria-haspopup="dialog" onClick={() => setSheet('customer')}>
-            <span>{d.name || d.number ? `${d.name || 'No name'} · ${d.number || 'No number'}` : 'Add name and number'}</span>
+            <span>{d.name || d.number ? `${d.name || t('No name')} · ${d.number || t('No number')}` : t('Add name and number')}</span>
             <Icon name="right" size={18} />
           </button>
-          {d.autoName && d.name && <div className="note good">Name filled in from an earlier record. Tap to change.</div>}
+          {d.autoName && d.name && <div className="note good">{t('Name filled in from an earlier record. Tap to change.')}</div>}
         </div>
       </main>
 
@@ -134,61 +176,77 @@ export function Review({ initial }: { initial: Draft }) {
         <div className="in">
           {warns.length > 0 && (
             <WarnBar>
-              <b>Please check.</b> {warns.map((w) => w.text).join(' ')}
+              <b>{t('Please check.')}</b> {warns.map((w) => t(w.tpl, w.args)).join(' ')}
             </WarnBar>
           )}
           {showDup && dupNow ? (
             <>
               {isPending(dupNow) && (
-                <button
-                  className="btn btn-primary"
-                  onClick={() => {
-                    // Give the cash now: mark the pending record as paid and go home.
-                    markPaid(dupNow);
-                    tab({ name: 'home' });
-                  }}
-                >
-                  <Icon name="check" size={22} />
-                  Mark as paid
+                <button className="btn btn-primary" onClick={() => payNow(dupNow)}>
+                  {t('Mark as paid')}
                 </button>
               )}
-              <button
-                className={isPending(dupNow) ? 'btn btn-ghost' : 'btn btn-primary'}
-                onClick={() => {
-                  // Open the record that already has this reference. Back goes home.
-                  tab({ name: 'home' });
-                  go({ name: 'detail', id: dupNow.id });
-                }}
-              >
-                Show saved record
+              <button className={isPending(dupNow) ? 'btn btn-ghost' : 'btn btn-primary'} onClick={() => showSaved(dupNow)}>
+                {t('Show saved record')}
               </button>
               <button className="btn btn-danger" onClick={() => setDiffers(true)}>
-                This is different. Save anyway
+                {t('This is different. Save anyway')}
               </button>
             </>
           ) : (
             <>
               <button className="btn btn-primary" disabled={!canSave} onClick={() => onSave('paid')}>
-                <Icon name="check" size={22} />
-                Save · Paid
+                {t('Save · Paid')}
               </button>
               <button className="btn btn-pending" disabled={!canSave} onClick={() => onSave('pending')}>
-                <Icon name="clock" size={22} />
-                Save · Pending
+                {t('Save · Pending')}
               </button>
               <div className="muted small" style={{ textAlign: 'center', lineHeight: 1.35 }}>
-                Pending keeps the receipt. Mark it <b>Paid</b> when you give the cash.
+                {t('Pending keeps the receipt. Mark it Paid when you give the cash.')}
               </div>
             </>
           )}
-          <button className="btn btn-text" onClick={() => tab({ name: 'home' })}>
-            Discard
+          <button className="btn btn-text" onClick={requestLeave}>
+            {t('Discard')}
           </button>
         </div>
       </div>
 
+      {leaving && (
+        <Sheet title={t('Not saved yet')} onClose={() => setLeaving(false)}>
+          <div className="muted" style={{ marginTop: -6, marginBottom: 14, fontSize: 16, lineHeight: 1.4 }}>
+            {amount > 0 ? `${peso2(amount)} · ` : ''}
+            {refDigits ? `${formatRef(refDigits)}. ` : ''}
+            {t('If you leave, this cash-out is not recorded.')}
+          </div>
+          <div className="stack">
+            <button className="btn btn-primary" onClick={() => setLeaving(false)}>
+              {t('Go back and save')}
+            </button>
+            <button
+              className="btn btn-ghost"
+              onClick={() => {
+                keepDraft(d);
+                tab({ name: 'home' });
+              }}
+            >
+              {t('Keep it for later (draft)')}
+            </button>
+            <button
+              className="btn btn-danger"
+              onClick={() => {
+                dropDraft();
+                tab({ name: 'home' });
+              }}
+            >
+              {t('Leave and discard')}
+            </button>
+          </div>
+        </Sheet>
+      )}
+
       {sheet === 'fee' && (
-        <Sheet title="Fee" onClose={() => setSheet(null)}>
+        <Sheet title={t('Fee')} onClose={() => setSheet(null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <button
               className={`opt${!d.feeTouched ? ' on' : ''}`}
@@ -198,59 +256,59 @@ export function Review({ initial }: { initial: Draft }) {
               }}
             >
               <span>
-                Automatic <small>· {autoFee != null ? `${peso(autoFee)} for ${peso(amount)}` : 'type it below'}</small>
+                {t('Automatic')} <small>· {autoFee != null ? t('{fee} for {amount}', { fee: peso(autoFee), amount: peso(amount) }) : t('type it below')}</small>
               </span>
               {!d.feeTouched && <Icon name="check" size={22} />}
             </button>
-            {fees.map((t, i) => (
+            {fees.map((tier, i) => (
               <button
                 key={i}
-                className={`opt${d.feeTouched && feeNum === t.fee ? ' on' : ''}`}
+                className={`opt${d.feeTouched && feeNum === tier.fee ? ' on' : ''}`}
                 onClick={() => {
-                  setD({ ...d, fee: t.fee.toFixed(2), feeTouched: true });
+                  setD({ ...d, fee: tier.fee.toFixed(2), feeTouched: true });
                   setSheet(null);
                 }}
               >
                 <span>
-                  {peso(t.fee)} <small>· ₱{tierLabel(fees, i)}</small>
+                  {peso(tier.fee)} <small>· ₱{tierLabel(fees, i)}</small>
                 </span>
-                {d.feeTouched && feeNum === t.fee && <Icon name="check" size={22} />}
+                {d.feeTouched && feeNum === tier.fee && <Icon name="check" size={22} />}
               </button>
             ))}
           </div>
           <div className="field">
-            <label htmlFor="cfee">Other fee (₱)</label>
+            <label htmlFor="cfee">{t('Other fee (₱)')}</label>
             <input
               id="cfee"
               className="box"
               inputMode="decimal"
               value={d.feeTouched ? d.fee : ''}
-              placeholder="Type a fee"
+              placeholder={t('Type a fee')}
               onChange={(e) => setD({ ...d, fee: e.target.value, feeTouched: true })}
             />
           </div>
           <button className="btn btn-soft" style={{ marginTop: 14 }} onClick={() => setSheet(null)}>
-            Done
+            {t('Done')}
           </button>
         </Sheet>
       )}
 
       {sheet === 'read' && (
-        <Sheet title="What the app read" onClose={() => setSheet(null)}>
+        <Sheet title={t('What the app read')} onClose={() => setSheet(null)}>
           <p className="muted" style={{ fontSize: 15, marginTop: -4, marginBottom: 10 }}>
-            This is the text the app found in the photo. If a field is wrong, send a screenshot of this to the developer. Hide real numbers first.
+            {t('This is the text the app found in the photo. If a field is wrong, send a screenshot of this to the developer. Hide real numbers first.')}
           </p>
-          <pre className="rawtext">{d.rawText ? d.rawText : '(nothing was read)'}</pre>
+          <pre className="rawtext">{d.rawText ? d.rawText : t('(nothing was read)')}</pre>
           <button className="btn btn-soft" style={{ marginTop: 14 }} onClick={() => setSheet(null)}>
-            Close
+            {t('Close')}
           </button>
         </Sheet>
       )}
 
       {sheet === 'customer' && (
-        <Sheet title="Customer" onClose={() => setSheet(null)}>
+        <Sheet title={t('Customer')} onClose={() => setSheet(null)}>
           <div className="field" style={{ marginTop: 0 }}>
-            <label htmlFor="nm">Name</label>
+            <label htmlFor="nm">{t('Name')}</label>
             <input
               id="nm"
               className="box"
@@ -262,40 +320,38 @@ export function Review({ initial }: { initial: Draft }) {
             />
           </div>
           <div className="field">
-            <label htmlFor="no">Number</label>
+            <label htmlFor="no">{t('Number')}</label>
             <input id="no" className="box" inputMode="tel" value={d.number} onChange={(e) => setD({ ...d, number: e.target.value })} />
           </div>
           <button className="btn btn-soft" style={{ marginTop: 16 }} onClick={() => setSheet(null)}>
-            Done
+            {t('Done')}
           </button>
         </Sheet>
       )}
 
       {dup && (
-        <Sheet title={isPending(dup) ? 'Waiting for cash' : 'Already saved'} onClose={() => setDup(null)}>
+        <Sheet title={isPending(dup) ? t('Waiting for cash') : t('Already saved')} onClose={() => setDup(null)}>
           <div className="muted" style={{ marginTop: -6, marginBottom: 14, fontSize: 16 }}>
-            {isPending(dup)
-              ? 'This one was saved as pending. If the cash is given now, mark it as paid.'
-              : 'This may be paid out twice.'}
+            {isPending(dup) ? t('This one was saved as pending. If the cash is given now, mark it as paid.') : t('This may be paid out twice.')}
           </div>
           <div className="card" style={{ boxShadow: 'none', background: 'var(--bg)' }}>
-            <div className="muted small">Reference number</div>
+            <div className="muted small">{t('Reference number')}</div>
             <div className="bigref">{formatRef(dup.ref)}</div>
             <div className="kv">
-              <span>Saved by</span>
+              <span>{t('Saved by')}</span>
               <b>{dup.by}</b>
             </div>
             <div className="kv">
-              <span>When</span>
+              <span>{t('When')}</span>
               <b>{dateTime(dup.savedAt)}</b>
             </div>
             <div className="kv">
-              <span>Amount</span>
+              <span>{t('Amount')}</span>
               <b>{peso2(dup.amount)}</b>
             </div>
             <div className="kv">
-              <span>Status</span>
-              <b style={isPending(dup) ? { color: 'var(--warn-text)' } : undefined}>{isPending(dup) ? 'Pending' : 'Paid'}</b>
+              <span>{t('Status')}</span>
+              <b style={isPending(dup) ? { color: 'var(--warn-text)' } : undefined}>{isPending(dup) ? t('Pending') : t('Paid')}</b>
             </div>
           </div>
           <div className="stack" style={{ marginTop: 16 }}>
@@ -303,31 +359,27 @@ export function Review({ initial }: { initial: Draft }) {
               <button
                 className="btn btn-primary"
                 onClick={() => {
-                  // Give the cash now: mark the pending record as paid and go home.
-                  markPaid(dup);
                   setDup(null);
-                  tab({ name: 'home' });
+                  payNow(dup);
                 }}
               >
-                Mark as paid
+                {t('Mark as paid')}
               </button>
             ) : null}
             <button
               className={isPending(dup) ? 'btn btn-ghost' : 'btn btn-primary'}
               onClick={() => {
-                // Open the record that already has this reference. Back goes home.
                 setDup(null);
-                tab({ name: 'home' });
-                go({ name: 'detail', id: dup.id });
+                showSaved(dup);
               }}
             >
-              Show saved record
+              {t('Show saved record')}
             </button>
             <button className="btn btn-danger" onClick={() => saveDraft({ ...d, ref: refDigits }, true, saveAs)}>
-              This is different. Save anyway
+              {t('This is different. Save anyway')}
             </button>
             <button className="btn btn-text" onClick={() => setDup(null)}>
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
         </Sheet>

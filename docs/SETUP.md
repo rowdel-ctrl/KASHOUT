@@ -150,7 +150,9 @@ Do these once, with fake or test receipts.
 11. **Share.** Open a receipt picture in GCash or the Gallery, tap Share, pick **Kashawt**. **Check and save** opens with the details. Nothing is saved until you tap Save.
 12. **Edit.** Open a record you saved and tap **Edit**. Change the amount, save, then tap **Edited · 1 change** to see the old and new values. You cannot edit a record someone else saved.
 13. **Mark paid.** In **Records > Pending**, tap **Mark paid** on a row. Tap **Undo** in the message within a few seconds to put it back.
-14. **Delete.** Open a record you saved and tap **Delete** twice. You cannot delete a record someone else saved.
+14. **Language.** Settings > Language: Taglish or English. Check that the save buttons read **Nakuha na** and **Hindi pa nakuha** in Taglish.
+15. **Unsaved scan.** Scan a receipt, then tap Back. You should be asked **Hindi pa na-save ito**. Choose **Itago muna (draft)**. Home shows a blue card with **Ituloy**. After 10 minutes the phone shows a reminder (allow notifications when asked).
+16. **Delete.** Open a record you saved and tap **Delete** twice. You cannot delete a record someone else saved.
 
 You can also test the security rules on a computer: `npm run test:rules` (needs Java).
 

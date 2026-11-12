@@ -3,13 +3,13 @@ import { fieldLabel, showValue } from '../lib/edit';
 import { feeFor } from '../lib/fees';
 import { dateTime, formatRef, fromLocalInput, parseMoney, peso, peso2, toLocalInput } from '../lib/format';
 import { isPending } from '../lib/records';
-import { Icon } from './icons';
 import { TopBar } from './components';
 import { useApp } from './context';
 
 /** Change a saved record. Only the person who saved it. Every change goes into History. */
 export function Edit({ id }: { id: string }) {
-  const { records, user, fees, editRecord, back } = useApp();
+  const { records, user, fees, editRecord, back, t, settings } = useApp();
+  const tl = settings.lang === 'tl';
   const r = records.find((x) => x.id === id);
   const [ref, setRef] = useState(r?.ref ?? '');
   const [amount, setAmount] = useState(r ? String(r.amount) : '');
@@ -21,16 +21,16 @@ export function Edit({ id }: { id: string }) {
   if (!r) {
     return (
       <main className="page">
-        <TopBar title="Edit record" />
-        <div className="empty">This record is not here anymore.</div>
+        <TopBar title={t('Edit record')} />
+        <div className="empty">{t('This record is not here anymore.')}</div>
       </main>
     );
   }
   if (r.byUid !== user.uid) {
     return (
       <main className="page">
-        <TopBar title="Edit record" />
-        <div className="empty">Only {r.by} can edit this record.</div>
+        <TopBar title={t('Edit record')} />
+        <div className="empty">{t('Only {name} can edit this record.', { name: r.by })}</div>
       </main>
     );
   }
@@ -46,44 +46,44 @@ export function Edit({ id }: { id: string }) {
   return (
     <>
       <main className="page review">
-        <TopBar title="Edit record" />
+        <TopBar title={t('Edit record')} />
         <div className="muted" style={{ fontSize: 16, fontWeight: 700, marginTop: 4 }}>
-          Change what is wrong. The old values are kept in History.
+          {t('Change what is wrong. The old values are kept in History.')}
         </div>
 
         <div className="field">
-          <label htmlFor="eref">Reference number</label>
+          <label htmlFor="eref">{t('Reference number')}</label>
           <input id="eref" className={`box big ${refOk ? 'ok' : 'warn'}`} inputMode="numeric" autoComplete="off" value={ref} onChange={(e) => setRef(e.target.value)} />
-          {clash ? <div className="note">Another record already has this reference number.</div> : <div className={`note${refOk ? ' good' : ''}`}>{refOk ? '13 digits ✓' : `${refDigits.length} digits. It should be 13.`}</div>}
+          {clash ? <div className="note">{t('Another record already has this reference number.')}</div> : <div className={`note${refOk ? ' good' : ''}`}>{refOk ? t('13 digits ✓') : t('{n} digits. It should be 13.', { n: refDigits.length })}</div>}
         </div>
 
         <div className="two">
           <div className="field">
-            <label htmlFor="eamt">Amount</label>
+            <label htmlFor="eamt">{t('Amount')}</label>
             <input id="eamt" className="box big" inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
           <div className="field">
-            <label htmlFor="efee">Fee</label>
+            <label htmlFor="efee">{t('Fee')}</label>
             <input id="efee" className="box big" inputMode="decimal" autoComplete="off" value={fee} onChange={(e) => setFee(e.target.value)} />
           </div>
         </div>
         {auto != null && auto !== feeNum && (
           <button className="link" style={{ marginTop: 6 }} onClick={() => setFee(auto.toFixed(2))}>
-            Use the table fee: {peso(auto)}
+            {t('Use the table fee: {fee}', { fee: peso(auto) })}
           </button>
         )}
 
         <div className="field">
-          <label htmlFor="edt">Date and time</label>
+          <label htmlFor="edt">{t('Date and time')}</label>
           <input id="edt" type="datetime-local" className="box" value={toLocalInput(txAt)} onChange={(e) => setTxAt(fromLocalInput(e.target.value))} />
         </div>
 
         <div className="field">
-          <label htmlFor="enm">Customer name</label>
+          <label htmlFor="enm">{t('Customer name')}</label>
           <input id="enm" className="box" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="field">
-          <label htmlFor="eno">Customer number</label>
+          <label htmlFor="eno">{t('Customer number')}</label>
           <input id="eno" className="box" inputMode="tel" value={number} onChange={(e) => setNumber(e.target.value)} />
         </div>
       </main>
@@ -97,11 +97,10 @@ export function Edit({ id }: { id: string }) {
               if (editRecord(r, { ref: refDigits, amount: amountNum, fee: feeNum, txAt, name: name.trim(), number: number.trim() })) back();
             }}
           >
-            <Icon name="check" size={22} />
-            Save changes
+            {t('Save changes')}
           </button>
           <button className="btn btn-text" onClick={back}>
-            Cancel
+            {t('Cancel')}
           </button>
         </div>
       </div>
@@ -111,35 +110,36 @@ export function Edit({ id }: { id: string }) {
 
 /** Who changed what, and when. Newest first. */
 export function History({ id }: { id: string }) {
-  const { records } = useApp();
+  const { records, t } = useApp();
   const r = records.find((x) => x.id === id);
   if (!r) {
     return (
       <main className="page">
-        <TopBar title="History" />
-        <div className="empty">This record is not here anymore.</div>
+        <TopBar title={t('History')} />
+        <div className="empty">{t('This record is not here anymore.')}</div>
       </main>
     );
   }
   const entries = [...(r.history ?? [])].reverse();
+  const tv = (f: string, v: string | number | null) => { const x = showValue(f, v); return x === 'empty' ? t('empty') : x; };
   return (
     <main className="page">
-      <TopBar title="History" />
+      <TopBar title={t('History')} />
       <div className="muted" style={{ fontSize: 16, fontWeight: 700, margin: '4px 0 12px' }}>
-        {formatRef(r.ref)} · every change is kept
+        {formatRef(r.ref)} · {t('every change is kept')}
       </div>
       <div className="stack">
         {entries.map((e, i) => (
           <div className="card histcard" key={i}>
             <div className="row-between">
-              <b>{e.by} edited</b>
+              <b>{t('{name} edited', { name: e.by })}</b>
               <span className="muted small">{dateTime(e.at)}</span>
             </div>
             {e.changes.map((c, j) => (
               <div className="chg" key={j}>
-                <b>{fieldLabel(c.f)}</b>
+                <b>{t(fieldLabel(c.f))}</b>
                 <div>
-                  <s>{showValue(c.f, c.from)}</s> → <strong>{showValue(c.f, c.to)}</strong>
+                  <s>{tv(c.f, c.from)}</s> → <strong>{tv(c.f, c.to)}</strong>
                 </div>
               </div>
             ))}
@@ -147,16 +147,16 @@ export function History({ id }: { id: string }) {
         ))}
         <div className="card histcard">
           <div className="row-between">
-            <b>{r.by} saved</b>
+            <b>{t('{name} saved', { name: r.by })}</b>
             <span className="muted small">{dateTime(r.savedAt)}</span>
           </div>
           <div className="muted" style={{ marginTop: 6 }}>
-            {isPending(r) ? 'Pending' : 'Paid'} · {peso2(r.amount)} now
+            {isPending(r) ? t('Pending') : t('Paid')} · {t('{amount} now', { amount: peso2(r.amount) })}
           </div>
         </div>
       </div>
       <div className="muted small" style={{ textAlign: 'center', marginTop: 14 }}>
-        Everyone on the list can see this history.
+        {t('Everyone on the list can see this history.')}
       </div>
     </main>
   );

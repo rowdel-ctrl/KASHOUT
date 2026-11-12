@@ -53,6 +53,7 @@ export interface FeeTier {
   fee: number;
 }
 
+export type Lang = 'tl' | 'en';
 export type TextSize = 'normal' | 'large' | 'xl';
 export type Theme = 'system' | 'light' | 'dark';
 
@@ -72,6 +73,8 @@ export interface Settings {
   closingReminder: boolean;
   /** The camera takes the photo by itself when the receipt is steady. */
   autoCapture: boolean;
+  /** App language. tl = Taglish. */
+  lang: Lang;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -85,6 +88,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ownNumbers: [],
   closingReminder: false,
   autoCapture: true,
+  lang: 'tl',
 };
 
 export interface Draft {

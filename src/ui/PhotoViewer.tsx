@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from './icons';
+import { useApp } from './context';
 
 const MAX = 6;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 /** Full-screen photo. Pinch to zoom, drag to move, double-tap to zoom in and out. */
 export function PhotoViewer({ src, onClose }: { src: string; onClose: () => void }) {
+  const { t: tr } = useApp();
   const [t, setT] = useState({ s: 1, x: 0, y: 0 });
   const pts = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ d: number; s: number } | null>(null);
@@ -59,14 +61,14 @@ export function PhotoViewer({ src, onClose }: { src: string; onClose: () => void
   }
 
   return (
-    <div className="viewer" role="dialog" aria-modal="true" aria-label="Receipt photo">
+    <div className="viewer" role="dialog" aria-modal="true" aria-label={tr('Receipt photo')}>
       <div className="stage" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onWheel={wheel}>
-        <img src={src} alt="Receipt" draggable={false} style={{ transform: `translate(${t.x}px, ${t.y}px) scale(${t.s})` }} />
+        <img src={src} alt={tr('Receipt')} draggable={false} style={{ transform: `translate(${t.x}px, ${t.y}px) scale(${t.s})` }} />
       </div>
-      <button className="round" aria-label="Close photo" onClick={onClose}>
+      <button className="round" aria-label={tr('Close photo')} onClick={onClose}>
         <Icon name="close" size={22} />
       </button>
-      <div className="vhint">{t.s > 1 ? `${t.s.toFixed(1)}×  ·  double-tap to reset` : 'Pinch or double-tap to zoom'}</div>
+      <div className="vhint">{t.s > 1 ? `${t.s.toFixed(1)}×  ·  ${tr('double-tap to reset')}` : tr('Pinch or double-tap to zoom')}</div>
     </div>
   );
 }

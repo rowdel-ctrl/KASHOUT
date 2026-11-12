@@ -6,6 +6,8 @@ Android app for a sari-sari store. Staff record every GCash cash-out by its **13
 - Staff check the numbers and tap **Save**. Nothing is saved without that tap.
 - Saved records sync to everyone's phones (Firebase, free plan). Works offline and syncs later.
 - Same reference twice? The app warns and shows who saved it and when.
+- **Taglish or English**, your choice in Settings. In Taglish the buttons are **Nakuha na** and **Hindi pa nakuha**.
+- **A scan is never lost:** if you leave Check and save without saving, the app asks first, keeps a draft for 24 hours, shows it on Home, and sends a phone reminder after 10 minutes.
 - Warm green design with dark mode, adjustable text size, and a two-column layout on tablets.
 - Live camera with a frame guide. A phone camera app is the fallback.
 - **Auto capture:** hold the receipt still and the app takes the photo by itself (switch in Settings). It still opens Check and save, never saves alone.

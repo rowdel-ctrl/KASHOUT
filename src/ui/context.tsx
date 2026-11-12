@@ -8,6 +8,10 @@ import {
   type AppUser, type CashRecord, type Draft, type FeeTier, type NewRecord, type Route, type Settings,
 } from '../lib/types';
 import { sendNtfy } from '../native/alerts';
+import {
+  cancelDraftReminder, clearDraftCopy, isMeaningful, loadDraft, saveDraftCopy, scheduleDraftReminder, type StoredDraft,
+} from '../native/draftStore';
+import { translate, type T } from '../lib/i18n';
 import { buzzSaved } from '../native/haptics';
 import { detectOwn, mergeOwn } from '../lib/identity';
 import { isNative } from '../native/platform';
@@ -37,6 +41,15 @@ interface Ctx {
   undo: UndoState | null;
   lastSaved: LastSaved | null;
   editRecord: (r: CashRecord, next: EditFields) => boolean;
+  /** Words on screen, in the chosen language. */
+  t: T;
+  /** A scan that was read but not saved yet. Kept on this phone for 24 hours. */
+  unsaved: StoredDraft | null;
+  keepDraft: (d: Draft) => void;
+  dropDraft: () => void;
+  resumeDraft: () => void;
+  /** A screen can ask to be told before Back leaves it. Return true when it handled Back. */
+  setLeaveGuard: (fn: (() => boolean) | null) => void;
   saveDraft: (d: Draft, allowDuplicate: boolean, status?: 'paid' | 'pending') => void;
   markPaid: (r: CashRecord) => void;
   undoSave: () => void;
@@ -72,6 +85,8 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
   const [undo, setUndo] = useState<UndoState | null>(null);
   const toastId = useRef(0);
   const [lastSaved, setLastSaved] = useState<LastSaved | null>(null);
+  const [unsaved, setUnsaved] = useState<StoredDraft | null>(null);
+  const leaveGuard = useRef<(() => boolean) | null>(null);
   const undoTimer = useRef<number | undefined>(undefined);
   const paidTimers = useRef(new Map<string, number>());
   const recordsRef = useRef(records);
@@ -80,6 +95,9 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
   feesRef.current = fees;
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  const lang = settings.lang;
+  const t = useCallback<T>((text, vars) => translate(lang, text, vars), [lang]);
+  const tr = useCallback<T>((text, vars) => translate(settingsRef.current.lang, text, vars), []);
 
   const toast = useCallback((text: string, err?: boolean, action?: Toast['action']) => {
     const id = ++toastId.current;
@@ -104,14 +122,14 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
         setDenied(false);
         setRecords(u.records);
         setSync(u.sync);
-        if (u.fresh.length === 1) toast(`${u.fresh[0].by} saved ${peso(u.fresh[0].amount)}${u.fresh[0].status === 'pending' ? ' (pending)' : ''}`);
-        else if (u.fresh.length > 1) toast(`${u.fresh.length} new cash-outs saved by others`);
-        if (u.paidNow.length === 1) toast(`${u.paidNow[0].paidBy} marked ${peso(u.paidNow[0].amount)} as paid`);
-        else if (u.paidNow.length > 1) toast(`${u.paidNow.length} records marked as paid by others`);
+        if (u.fresh.length === 1) toast(tr(u.fresh[0].status === 'pending' ? '{name} saved {amount} (pending)' : '{name} saved {amount}', { name: u.fresh[0].by, amount: peso(u.fresh[0].amount) }));
+        else if (u.fresh.length > 1) toast(tr('{n} new cash-outs saved by others', { n: u.fresh.length }));
+        if (u.paidNow.length === 1) toast(tr('{name} marked {amount} as paid', { name: u.paidNow[0].paidBy ?? '', amount: peso(u.paidNow[0].amount) }));
+        else if (u.paidNow.length > 1) toast(tr('{n} records marked as paid by others', { n: u.paidNow.length }));
       },
       (code) => {
         if (code === 'permission-denied') setDenied(true);
-        else toast('Could not load records. Check your internet.', true);
+        else toast(tr('Could not load records. Check your internet.'), true);
       },
     );
     const offFees = api.subscribeFees((t) => setFees(t ?? DEFAULT_FEES));
@@ -123,7 +141,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
       offFees();
       offErr();
     };
-  }, [toast]);
+  }, [toast, tr]);
 
   // Learn the store's own name and number from the records, and remember them.
   const updateRef = useRef(updateSettings);
@@ -144,6 +162,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
   useEffect(() => {
     if (!isNative) return;
     const h = CapApp.addListener('backButton', () => {
+      if (leaveGuard.current?.()) return;
       if (stack.length > 1) back();
       else void CapApp.exitApp();
     });
@@ -178,6 +197,9 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
       void buzzSaved();
       void sendNtfy(topicRef.current, `${user.name}: ${peso(amount)} ${status === 'pending' ? 'pending' : 'cashed out'}`);
       setLastSaved({ id, amount, name: rec.name, status });
+      setUnsaved(null);
+      void clearDraftCopy();
+      void cancelDraftReminder();
       setStack([{ name: 'home' }, { name: 'saved' }]);
     },
     [user],
@@ -196,8 +218,8 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
           void sendNtfy(topicRef.current, `${r.by}: ${peso(r.amount)} cashed out\nPaid by ${user.name}.`);
         }, 6500),
       );
-      toast('Marked as paid', false, {
-        label: 'Undo',
+      toast(tr('Marked as paid'), false, {
+        label: tr('Undo'),
         run: () => {
           window.clearTimeout(paidTimers.current.get(r.id));
           paidTimers.current.delete(r.id);
@@ -205,21 +227,21 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
         },
       });
     },
-    [user, toast],
+    [user, toast, tr],
   );
 
   const editRecord = useCallback(
     (r: CashRecord, next: EditFields): boolean => {
       const changes = diffFields(fieldsOf(r), next);
       if (changes.length === 0) {
-        toast('Nothing was changed');
+        toast(tr('Nothing was changed'));
         return false;
       }
       api.editRecord(r.id, next, [...(r.history ?? []), { at: Date.now(), by: user.name, byUid: user.uid, changes }]);
-      toast('Changes saved');
+      toast(tr('Changes saved'));
       return true;
     },
-    [user, toast],
+    [user, toast, tr],
   );
 
   // A receipt shared from GCash (or any app) opens Check and save.
@@ -230,10 +252,40 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
         const draft = item.photo ? await draftFromPhoto(item.photo, ctx) : draftFromText(item.text ?? '', ctx);
         setStack([{ name: 'home' }, { name: 'review', draft }]);
       } catch {
-        toast('Could not open the shared receipt.', true);
+        toast(tr('Could not open the shared receipt.'), true);
       }
     });
-  }, [toast]);
+  }, [toast, tr]);
+
+  // A scan that was read but not saved is kept on this phone, so it is not lost.
+  useEffect(() => {
+    void loadDraft().then((d) => d && setUnsaved(d));
+  }, []);
+
+  const keepDraft = useCallback(
+    (d: Draft) => {
+      if (!isMeaningful(d)) return;
+      const at = Date.now();
+      setUnsaved({ draft: d, at });
+      void saveDraftCopy(d, at);
+      void scheduleDraftReminder(tr('Kashawt'), tr('You have a scan that is not saved yet. Tap to continue.'));
+    },
+    [tr],
+  );
+  const dropDraft = useCallback(() => {
+    setUnsaved(null);
+    void clearDraftCopy();
+    void cancelDraftReminder();
+  }, []);
+  const unsavedRef = useRef(unsaved);
+  unsavedRef.current = unsaved;
+  const resumeDraft = useCallback(() => {
+    const u = unsavedRef.current;
+    if (u) setStack((s) => [...s, { name: 'review', draft: u.draft }]);
+  }, []);
+  const setLeaveGuard = useCallback((fn: (() => boolean) | null) => {
+    leaveGuard.current = fn;
+  }, []);
 
   const undoSave = useCallback(() => {
     if (!undo) return;
@@ -249,14 +301,14 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
   }, []);
 
   const syncLabel = !online
-    ? { text: 'Offline', wait: true }
+    ? { text: t('Offline'), wait: true }
     : sync.pending
-      ? { text: 'Waiting to sync', wait: true }
-      : { text: api.mode === 'demo' ? 'Demo' : 'Synced', wait: false };
+      ? { text: t('Waiting to sync'), wait: true }
+      : { text: api.mode === 'demo' ? t('Demo') : t('Synced'), wait: false };
 
   return (
     <AppCtx.Provider
-      value={{ user, records, syncLabel, alertTopic, settings, updateSettings, fees, route, go, replace, back, tab, toast, undo, lastSaved, editRecord, saveDraft, markPaid, undoSave, signOut }}
+      value={{ user, records, syncLabel, alertTopic, settings, updateSettings, fees, route, go, replace, back, tab, toast, undo, lastSaved, editRecord, t, unsaved, keepDraft, dropDraft, resumeDraft, setLeaveGuard, saveDraft, markPaid, undoSave, signOut }}
     >
       {children({ route, toasts, denied })}
     </AppCtx.Provider>

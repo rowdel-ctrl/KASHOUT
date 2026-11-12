@@ -485,3 +485,11 @@ mark { background: var(--warn-bg); color: inherit; border-radius: 4px; padding: 
 .toast button { pointer-events: auto; min-height: 44px; padding: 0 8px; border: 0; background: none; color: #7CE79A; font-size: 17px; font-weight: 800; }
 html[data-theme='dark'] .toast button { color: #17803F; }
 .rec .right { display: flex; flex-direction: column; align-items: flex-end; }
+
+/* unsaved scan card on Home */
+.draftcard { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 22px; background: var(--blue-bg, #E8F1FB); border: 2px solid var(--blue-line, #4A86D6); color: var(--blue-text, #123E78); animation: fade .2s ease; }
+.draftcard b { font-size: 17px; font-weight: 800; }
+.draftcard > span { font-size: 15px; font-weight: 700; }
+.draftcard .btn { height: 48px; font-size: 16px; }
+html[data-theme='dark'] .draftcard { --blue-bg: #1B2A3D; --blue-line: #4A86D6; --blue-text: #BBD6FF; }
+@media (prefers-color-scheme: dark) { html[data-theme='system'] .draftcard { --blue-bg: #1B2A3D; --blue-line: #4A86D6; --blue-text: #BBD6FF; } }

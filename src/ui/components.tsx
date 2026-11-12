@@ -6,10 +6,10 @@ import { useApp } from './context';
 import { Icon } from './icons';
 
 export function TopBar({ title, onBack }: { title: string; onBack?: () => void }) {
-  const { back } = useApp();
+  const { back, t } = useApp();
   return (
     <div className="topbar">
-      <button className="round" aria-label="Back" onClick={onBack ?? back}>
+      <button className="round" aria-label={t('Back')} onClick={onBack ?? back}>
         <Icon name="back" size={22} />
       </button>
       <h1>{title}</h1>
@@ -18,14 +18,14 @@ export function TopBar({ title, onBack }: { title: string; onBack?: () => void }
 }
 
 export function NavBar({ active }: { active: 'home' | 'records' | 'settings' }) {
-  const { tab } = useApp();
+  const { tab, t } = useApp();
   const items: { key: 'home' | 'records' | 'settings'; label: string; icon: string; route: Route }[] = [
-    { key: 'home', label: 'Home', icon: 'home', route: { name: 'home' } },
-    { key: 'records', label: 'Records', icon: 'list', route: { name: 'records' } },
-    { key: 'settings', label: 'Settings', icon: 'gear', route: { name: 'settings' } },
+    { key: 'home', label: t('Home'), icon: 'home', route: { name: 'home' } },
+    { key: 'records', label: t('Records'), icon: 'list', route: { name: 'records' } },
+    { key: 'settings', label: t('Settings'), icon: 'gear', route: { name: 'settings' } },
   ];
   return (
-    <nav className="nav" aria-label="Main">
+    <nav className="nav" aria-label={t('Main')}>
       {items.map((i) => (
         <button key={i.key} className={active === i.key ? 'on' : ''} aria-current={active === i.key ? 'page' : undefined} onClick={() => tab(i.route)}>
           <i>
@@ -118,6 +118,8 @@ export function RecRow({ r, onClick, fresh, selected, q, onMarkPaid }: { r: Cash
   const pending = isPending(r);
   const waited = Date.now() - r.savedAt;
   const late = pending && waited >= LATE_MS;
+  const { t, settings } = useApp();
+  const tl = settings.lang === 'tl';
   const quick = pending && !!onMarkPaid && !!onClick;
   const main = (
     <>
@@ -129,7 +131,7 @@ export function RecRow({ r, onClick, fresh, selected, q, onMarkPaid }: { r: Cash
             : formatRef(r.ref)}
         </div>
         <div className="sub">
-          <Hl text={r.name || 'No name'} q={field === 'name' ? q : undefined} /> · <Hl text={r.by} q={field === 'staff' ? q : undefined} />
+          <Hl text={r.name || t('No name')} q={field === 'name' ? q : undefined} /> · <Hl text={r.by} q={field === 'staff' ? q : undefined} />
         </div>
         {field === 'number' && q && (
           <div className="ext">
@@ -143,13 +145,13 @@ export function RecRow({ r, onClick, fresh, selected, q, onMarkPaid }: { r: Cash
     <span className="right">
       <div className="amt">{field === 'amount' ? <mark>{amountText}</mark> : amountText}</div>
       {pending ? (
-        <div className={`tag${late ? ' late' : ''}`}>{late ? `Pending · ${waitText(waited)}` : 'Pending'}</div>
+        <div className={`tag${late ? ' late' : ''}`}>{late ? `${t('Pending')} · ${waitText(waited, tl)}` : t('Pending')}</div>
       ) : (
         <div className="when">{timeOf(whenOf(r))}</div>
       )}
       {quick && (
-        <button className="markpaid" aria-label={`Mark ${peso2(r.amount)} as paid`} onClick={onMarkPaid}>
-          Mark paid
+        <button className="markpaid" aria-label={t('Mark {amount} as paid', { amount: peso2(r.amount) })} onClick={onMarkPaid}>
+          {t('Mark paid')}
         </button>
       )}
     </span>

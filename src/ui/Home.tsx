@@ -1,4 +1,4 @@
-import { peso, peso2, waitText } from '../lib/format';
+import { formatRef, parseMoney, peso, peso2, waitText } from '../lib/format';
 import { LATE_MS, applyFilters, summarize } from '../lib/records';
 import { DEFAULT_FILTERS } from '../lib/types';
 import { Icon } from './icons';
@@ -6,7 +6,8 @@ import { NavBar, RecRow } from './components';
 import { useApp } from './context';
 
 export function Home() {
-  const { user, records, syncLabel, go, tab, undo, undoSave, markPaid } = useApp();
+  const { user, records, syncLabel, go, tab, undo, undoSave, markPaid, t, settings, unsaved, resumeDraft, dropDraft, keepDraft, toast } = useApp();
+  const tl = settings.lang === 'tl';
   // Paid today: cash that went out today. Pending records are counted apart.
   const day = summarize(applyFilters(records, { ...DEFAULT_FILTERS, period: 'today' }));
   const waiting = summarize(applyFilters(records, { ...DEFAULT_FILTERS, status: 'pending' }));
@@ -20,7 +21,7 @@ export function Home() {
       <main className="page wide has-nav home">
         <div className="row-between">
           <div>
-            <div className="muted">Hi, {user.name}</div>
+            <div className="muted">{t('Hi, {name}', { name: user.name })}</div>
             <h1 className="h1" style={{ fontSize: 28 }}>
               Kashawt
             </h1>
@@ -37,46 +38,69 @@ export function Home() {
               <span className="ring">
                 <Icon name="camera" size={42} />
               </span>
-              <b>Record a cash-out</b>
-              <span>Take a photo or pick a screenshot</span>
+              <b>{t('Record a cash-out')}</b>
+              <span>{t('Take a photo or pick a screenshot')}</span>
             </button>
+            {unsaved && (
+              <div className="draftcard" role="status">
+                <b>{t('You have a scan that is not saved')}</b>
+                <span>
+                  {peso2(parseMoney(unsaved.draft.amount))} · {formatRef(unsaved.draft.ref)} · {t('{time} ago', { time: waitText(Date.now() - unsaved.at, tl) })}
+                </span>
+                <div className="two">
+                  <button className="btn btn-primary" onClick={resumeDraft}>
+                    {t('Continue')}
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      const old = unsaved.draft;
+                      dropDraft();
+                      toast(t('Scan discarded'), false, { label: t('Undo'), run: () => keepDraft(old) });
+                    }}
+                  >
+                    {t('Discard')}
+                  </button>
+                </div>
+              </div>
+            )}
             {waiting.pendingCount > 0 && (
               <button className="pendingcard" onClick={() => tab({ name: 'records', status: 'pending' })}>
                 <span className="ic">
                   <Icon name="clock" size={24} />
                 </span>
                 <span>
-                  <b>{waiting.pendingCount} pending</b>
+                  <b>{t('{n} pending', { n: waiting.pendingCount })}</b>
                   <span>
-                    {peso2(waiting.pendingTotal)} · oldest {waited >= LATE_MS ? <em>{waitText(waited)}</em> : waitText(waited)}
+                    {peso2(waiting.pendingTotal)} · {t('oldest')} {waited >= LATE_MS ? <em>{waitText(waited, tl)}</em> : waitText(waited, tl)}
                   </span>
                 </span>
-                <span className="see">See</span>
+                <span className="see">{t('See')}</span>
               </button>
             )}
             <div className="stats">
               <div className="stat">
-                <small>Paid today</small>
+                <small>{t('Paid today')}</small>
                 <b>{peso(total)}</b>
-                <span>{day.count} cash-outs</span>
+                <span>{t('{n} cash-outs', { n: day.count })}</span>
               </div>
               <div className="stat">
-                <small>Fees today</small>
+                <small>{t('Fees today')}</small>
                 <b>{peso2(fees)}</b>
-                <span>Kita ngayon</span>
+                <span>{t('From fees')}</span>
               </div>
             </div>
           </div>
 
           <div className="right">
             <div className="row-between" style={{ margin: '4px 0 8px' }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800 }}>Recent</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 800 }}>{t('Recent')}</h2>
               <button className="link" style={{ background: 'none', border: 0, minHeight: 44, color: 'var(--green-text)', fontSize: 15, fontWeight: 800 }} onClick={() => tab({ name: 'records' })}>
-                See all
+                {t('See all')}
               </button>
             </div>
             {latest.length === 0 ? (
-              <div className="hint">Nothing recorded yet. Tap the green button, take a photo of the GCash receipt, and save it.</div>
+              <div className="hint">{t('Nothing recorded yet. Tap the green button, take a photo of the GCash receipt, and save it.')}</div>
             ) : (
               <div className="list">
                 {latest.map((r, i) => (
@@ -93,8 +117,8 @@ export function Home() {
       {undo && (
         <div className="undo" role="status">
           <div>
-            {undo.status === 'pending' ? 'Saved as pending' : 'Saved'}
-            <button onClick={undoSave}>Undo</button>
+            {undo.status === 'pending' ? t('Saved as pending') : t('Saved')}
+            <button onClick={undoSave}>{t('Undo')}</button>
           </div>
           <span className="bar">
             <i />

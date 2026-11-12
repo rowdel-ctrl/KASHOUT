@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '../data';
 import { DEFAULT_FEES, tierLabel } from '../lib/fees';
 import { parseMoney, peso } from '../lib/format';
-import type { FeeTier, TextSize, Theme } from '../lib/types';
+import type { FeeTier, Lang, TextSize, Theme } from '../lib/types';
 import { openAlertsApp, sendNtfy, setClosingReminder } from '../native/alerts';
 import { Icon } from './icons';
 import { NavBar, OptionSheet, Switch, TopBar } from './components';
@@ -18,6 +18,10 @@ const THEMES: { value: Theme; label: string; hint?: string }[] = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
 ];
+const LANGS: { value: Lang; label: string }[] = [
+  { value: 'tl', label: 'Taglish' },
+  { value: 'en', label: 'English' },
+];
 const LIMITS: { value: number; label: string }[] = [
   { value: 0, label: 'Off' },
   { value: 3000, label: '₱3,000' },
@@ -28,64 +32,74 @@ const LIMITS: { value: number; label: string }[] = [
 ];
 
 export function SettingsScreen() {
-  const { settings, updateSettings, go, toast, user, signOut, alertTopic } = useApp();
-  const [sheet, setSheet] = useState<'size' | 'theme' | 'limit' | null>(null);
+  const { settings, updateSettings, go, toast, user, signOut, alertTopic, t } = useApp();
+  const [sheet, setSheet] = useState<'size' | 'theme' | 'limit' | 'lang' | null>(null);
 
   async function toggleReminder(on: boolean) {
     const ok = await setClosingReminder(on);
-    if (!ok && on) return toast('Could not turn on the reminder. Allow notifications first.', true);
+    if (!ok && on) return toast(t('Could not turn on the reminder. Allow notifications first.'), true);
     updateSettings({ closingReminder: on });
   }
 
-  const sizeLabel = SIZES.find((s) => s.value === settings.textSize)!.label;
-  const themeLabel = THEMES.find((t) => t.value === settings.theme)!.label;
-  const limitLabel = LIMITS.find((l) => l.value === settings.bigLimit)?.label ?? peso(settings.bigLimit);
+  const sizeLabel = t(SIZES.find((x) => x.value === settings.textSize)!.label);
+  const themeLabel = t(THEMES.find((x) => x.value === settings.theme)!.label);
+  const limitLabel = t(LIMITS.find((l) => l.value === settings.bigLimit)?.label ?? peso(settings.bigLimit));
+  const langLabel = LANGS.find((l) => l.value === settings.lang)!.label;
 
   return (
     <>
       <main className="page has-nav">
-        <h1 className="h1">Settings</h1>
+        <h1 className="h1">{t('Settings')}</h1>
 
-        <div className="sec">Display</div>
+        <div className="sec">{t('Language and display')}</div>
         <div className="card flush">
+          <button className="item" aria-haspopup="dialog" onClick={() => setSheet('lang')}>
+            <span className="grow">
+              {t('Language')}
+              <small>{t('English or Taglish')}</small>
+            </span>
+            <span className="val">
+              {langLabel} <Icon name="down" size={16} color="var(--muted)" />
+            </span>
+          </button>
           <button className="item" aria-haspopup="dialog" onClick={() => setSheet('size')}>
-            <span className="grow">Text size</span>
+            <span className="grow">{t('Text size')}</span>
             <span className="val">
               {sizeLabel} <Icon name="down" size={16} color="var(--muted)" />
             </span>
           </button>
           <button className="item" aria-haspopup="dialog" onClick={() => setSheet('theme')}>
-            <span className="grow">Theme</span>
+            <span className="grow">{t('Theme')}</span>
             <span className="val">
               {themeLabel} <Icon name="down" size={16} color="var(--muted)" />
             </span>
           </button>
         </div>
 
-        <div className="sec">Scanning</div>
+        <div className="sec">{t('Scanning')}</div>
         <div className="card flush">
           <div className="item">
             <span className="grow">
-              Take photo automatically
-              <small>The camera takes the photo when the receipt is steady. You still tap Save.</small>
+              {t('Take photo automatically')}
+              <small>{t('The camera takes the photo when the receipt is steady. You still tap Save.')}</small>
             </span>
-            <Switch on={settings.autoCapture} label="Take photo automatically" onChange={(v) => updateSettings({ autoCapture: v })} />
+            <Switch on={settings.autoCapture} label={t('Take photo automatically')} onChange={(v) => updateSettings({ autoCapture: v })} />
           </div>
           <div className="item">
             <span className="grow">
-              Save receipt photo
-              <small>A small copy, for checking later</small>
+              {t('Save receipt photo')}
+              <small>{t('A small copy, for checking later')}</small>
             </span>
-            <Switch on={settings.savePhoto} label="Save receipt photo" onChange={(v) => updateSettings({ savePhoto: v })} />
+            <Switch on={settings.savePhoto} label={t('Save receipt photo')} onChange={(v) => updateSettings({ savePhoto: v })} />
           </div>
         </div>
 
-        <div className="sec">Cash-out rules</div>
+        <div className="sec">{t('Cash-out rules')}</div>
         <div className="card flush">
           <button className="item" aria-haspopup="dialog" onClick={() => setSheet('limit')}>
             <span className="grow">
-              Big amount limit
-              <small>Warns above this amount</small>
+              {t('Big amount limit')}
+              <small>{t('Warns above this amount')}</small>
             </span>
             <span className="val">
               {limitLabel} <Icon name="down" size={16} color="var(--muted)" />
@@ -93,65 +107,65 @@ export function SettingsScreen() {
           </button>
           <div className="item">
             <span className="grow">
-              Warn on old receipts
-              <small>Date is not today</small>
+              {t('Warn on old receipts')}
+              <small>{t('Date is not today')}</small>
             </span>
-            <Switch on={settings.warnOld} label="Warn on old receipts" onChange={(v) => updateSettings({ warnOld: v })} />
+            <Switch on={settings.warnOld} label={t('Warn on old receipts')} onChange={(v) => updateSettings({ warnOld: v })} />
           </div>
           <button className="item" onClick={() => go({ name: 'fees' })}>
             <span className="grow">
-              Fee table
-              <small>Set by amount</small>
+              {t('Fee table')}
+              <small>{t('Set by amount')}</small>
             </span>
             <span className="val">
-              View <Icon name="right" size={16} color="var(--muted)" />
+              {t('View')} <Icon name="right" size={16} color="var(--muted)" />
             </span>
           </button>
         </div>
 
-        <div className="sec">Alerts</div>
+        <div className="sec">{t('Alerts')}</div>
         <div className="card flush">
           <div className="item">
             <span className="grow">
-              Closing reminder
-              <small>Every day at 8:00 PM</small>
+              {t('Closing reminder')}
+              <small>{t('Every day at 8:00 PM')}</small>
             </span>
-            <Switch on={settings.closingReminder} label="Closing reminder" onChange={toggleReminder} />
+            <Switch on={settings.closingReminder} label={t('Closing reminder')} onChange={toggleReminder} />
           </div>
           <div className="item">
             <span className="grow">
-              Phone alerts
-              <small>Get an alert when someone saves. Needs the free ntfy app.</small>
+              {t('Phone alerts')}
+              <small>{t('Get an alert when someone saves. Needs the free ntfy app.')}</small>
             </span>
-            <button className="chipbtn" onClick={() => alertTopic ? void openAlertsApp(alertTopic) : toast('Alerts are not ready yet. Check your internet.', true)}>
-              Turn on
+            <button className="chipbtn" onClick={() => alertTopic ? void openAlertsApp(alertTopic) : toast(t('Alerts are not ready yet. Check your internet.'), true)}>
+              {t('Turn on')}
             </button>
           </div>
           <div className="item">
             <span className="grow">
-              Send a test alert
-              <small>Everyone with alerts on gets it</small>
+              {t('Send a test alert')}
+              <small>{t('Everyone with alerts on gets it')}</small>
             </span>
             <button
               className="chipbtn"
               onClick={async () => {
-                if (!alertTopic) return toast('Alerts are not ready yet. Check your internet.', true);
+                if (!alertTopic) return toast(t('Alerts are not ready yet. Check your internet.'), true);
                 const ok = await sendNtfy(alertTopic, `Test alert from ${user.name}`);
-                toast(ok ? 'Test alert sent' : 'Could not send. Check your internet.', !ok);
+                toast(ok ? t('Test alert sent') : t('Could not send. Check your internet.'), !ok);
               }}
             >
-              Send
+              {t('Send')}
             </button>
           </div>
         </div>
 
         <div className="card signed">
           <div>
-            <small>Signed in as</small>
+            <small>{t('Signed in as')}</small>
             <b>{user.name}</b>
           </div>
           <button className="btn btn-ghost" onClick={signOut}>
-            Sign out
+            {t('Sign out')}
           </button>
         </div>
       </main>
@@ -159,18 +173,19 @@ export function SettingsScreen() {
 
       {sheet === 'size' && (
         <OptionSheet
-          title="Text size"
-          options={SIZES}
+          title={t('Text size')}
+          options={SIZES.map((o) => ({ ...o, label: t(o.label) }))}
           value={settings.textSize}
           onPick={(v) => updateSettings({ textSize: v })}
           onClose={() => setSheet(null)}
         />
       )}
-      {sheet === 'theme' && <OptionSheet title="Theme" options={THEMES} value={settings.theme} onPick={(v) => updateSettings({ theme: v })} onClose={() => setSheet(null)} />}
+      {sheet === 'lang' && <OptionSheet title={t('Language')} options={LANGS} value={settings.lang} onPick={(v) => updateSettings({ lang: v })} onClose={() => setSheet(null)} />}
+      {sheet === 'theme' && <OptionSheet title={t('Theme')} options={THEMES.map((o) => ({ ...o, label: t(o.label), hint: o.hint ? t(o.hint) : undefined }))} value={settings.theme} onPick={(v) => updateSettings({ theme: v })} onClose={() => setSheet(null)} />}
       {sheet === 'limit' && (
         <OptionSheet
-          title="Big amount limit"
-          options={LIMITS.some((l) => l.value === settings.bigLimit) ? LIMITS : [...LIMITS, { value: settings.bigLimit, label: peso(settings.bigLimit) }]}
+          title={t('Big amount limit')}
+          options={(LIMITS.some((l) => l.value === settings.bigLimit) ? LIMITS : [...LIMITS, { value: settings.bigLimit, label: peso(settings.bigLimit) }]).map((o) => ({ ...o, label: t(o.label) }))}
           value={settings.bigLimit}
           onPick={(v) => updateSettings({ bigLimit: parseMoney(String(v)) })}
           onClose={() => setSheet(null)}
@@ -181,38 +196,38 @@ export function SettingsScreen() {
 }
 
 export function FeeTable() {
-  const { fees, toast } = useApp();
+  const { fees, toast, t } = useApp();
   const [edit, setEdit] = useState(false);
   const [draft, setDraft] = useState<FeeTier[]>(fees);
   const table = edit ? draft : fees;
   const half = Math.ceil(table.length / 2);
-  const cols = [table.slice(0, half).map((t, i) => ({ t, i })), table.slice(half).map((t, i) => ({ t, i: i + half }))];
+  const cols = [table.slice(0, half).map((tier, i) => ({ tier, i })), table.slice(half).map((tier, i) => ({ tier, i: i + half }))];
 
   async function save() {
     try {
       await api.saveFees(draft);
-      toast('Fee table saved');
+      toast(t('Fee table saved'));
       setEdit(false);
     } catch {
-      toast('Could not save the table. Check your internet.', true);
+      toast(t('Could not save the table. Check your internet.'), true);
     }
   }
 
   return (
     <main className="page">
-      <TopBar title="Fee table" />
-      <div className="example">Example: ₱3,500 cash-out = ₱40 fee</div>
+      <TopBar title={t('Fee table')} />
+      <div className="example">{t('Example: ₱3,500 cash-out = ₱40 fee')}</div>
       <div className="card" style={{ marginTop: 12, padding: '6px 16px' }}>
         <div className="tiers">
           {cols.map((col, ci) => (
             <div key={ci}>
-              {col.map(({ t, i }) => (
+              {col.map(({ tier, i }) => (
                 <div className="tier" key={i}>
                   <span>{tierLabel(table, i)}</span>
                   {edit ? (
-                    <input aria-label={`Fee for ${tierLabel(table, i)}`} inputMode="numeric" value={t.fee} onChange={(e) => setDraft(draft.map((x, j) => (j === i ? { ...x, fee: parseMoney(e.target.value) } : x)))} />
+                    <input aria-label={t('Fee for {range}', { range: tierLabel(table, i) })} inputMode="numeric" value={tier.fee} onChange={(e) => setDraft(draft.map((x, j) => (j === i ? { ...x, fee: parseMoney(e.target.value) } : x)))} />
                   ) : (
-                    <b>₱{t.fee}</b>
+                    <b>₱{tier.fee}</b>
                   )}
                 </div>
               ))}
@@ -221,18 +236,18 @@ export function FeeTable() {
         </div>
       </div>
       <p className="muted" style={{ textAlign: 'center', fontSize: 15, margin: '14px 0' }}>
-        Above ₱{table[table.length - 1].upTo.toLocaleString('en-US')}, type the fee by hand.
+        {t('Above ₱{amount}, type the fee by hand.', { amount: table[table.length - 1].upTo.toLocaleString('en-US') })}
       </p>
       {edit ? (
         <div className="stack">
           <button className="btn btn-primary" onClick={save}>
-            Save table
+            {t('Save table')}
           </button>
           <button className="btn btn-ghost" onClick={() => setDraft(DEFAULT_FEES.map((t) => ({ ...t })))}>
-            Reset to the sheet
+            {t('Reset to the sheet')}
           </button>
           <button className="btn btn-text" onClick={() => setEdit(false)}>
-            Cancel
+            {t('Cancel')}
           </button>
         </div>
       ) : (
@@ -243,7 +258,7 @@ export function FeeTable() {
             setEdit(true);
           }}
         >
-          Edit table
+          {t('Edit table')}
         </button>
       )}
     </main>
