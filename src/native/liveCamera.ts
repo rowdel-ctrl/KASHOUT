@@ -24,7 +24,7 @@ export function useLiveCamera() {
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('no camera api');
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1440 } },
         audio: false,
       });
       streamRef.current = stream;
@@ -33,8 +33,13 @@ export function useLiveCamera() {
         v.srcObject = stream;
         await v.play().catch(() => {});
       }
-      const caps = (stream.getVideoTracks()[0]?.getCapabilities?.() ?? {}) as { torch?: boolean };
+      const track = stream.getVideoTracks()[0];
+      const caps = (track?.getCapabilities?.() ?? {}) as { torch?: boolean; focusMode?: string[] };
       setTorchOk(!!caps.torch);
+      // Keep the receipt in focus while the phone moves.
+      if (caps.focusMode?.includes('continuous')) {
+        await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] }).catch(() => {});
+      }
       setState('ready');
     } catch {
       setState('unavailable');
@@ -91,5 +96,26 @@ export function useLiveCamera() {
     return { webPath: URL.createObjectURL(blob) };
   }, []);
 
-  return { videoRef, state, retry: start, torch, torchOk, toggleTorch, capture, grab };
+  /**
+   * A full-quality still from the camera (sharper than a video frame, with the phone's own focus).
+   * Falls back to a video frame when the phone does not support it.
+   */
+  const captureSharp = useCallback(async (): Promise<{ webPath: string } | null> => {
+    const track = streamRef.current?.getVideoTracks()[0];
+    const IC = (globalThis as { ImageCapture?: new (t: MediaStreamTrack) => { takePhoto: () => Promise<Blob> } }).ImageCapture;
+    if (track && IC) {
+      try {
+        const blob = await Promise.race([
+          new IC(track).takePhoto(),
+          new Promise<never>((_, rej) => setTimeout(() => rej(new Error('slow')), 3500)),
+        ]);
+        if (blob && blob.size > 0) return { webPath: URL.createObjectURL(blob) };
+      } catch {
+        /* use a video frame */
+      }
+    }
+    return capture();
+  }, [capture]);
+
+  return { videoRef, state, retry: start, torch, torchOk, toggleTorch, capture, captureSharp, grab };
 }

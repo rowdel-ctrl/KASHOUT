@@ -24,13 +24,17 @@ export function Scan() {
   const [look, setLook] = useState<Look>({ kind: 'nothing' });
 
   /** `knownText`: the picture was already read (auto capture), so it is not read again. */
-  async function handle(get: () => Promise<PickedPhoto | null>, knownText?: string) {
+  async function handle(get: () => Promise<PickedPhoto | null>, knownText?: string, live = false) {
     try {
       const photo = await get();
       if (!photo) return;
       setBusy(true);
       const draft = await draftFromPhoto(photo, { fees, settings }, knownText);
       if (!draft.rawText) toast(t('Could not read the photo. Please type the details.'), true);
+      else if (live && !draft.refRead) {
+        // The live picture was not clear enough. The phone's own camera app takes a sharper one.
+        toast(t('Could not read the Ref No. Try the phone camera app.'), true, { label: t('Camera app'), run: () => void handleRef.current(takePhoto) });
+      }
       replace({ name: 'review', draft });
     } catch (e) {
       setBusy(false);
@@ -41,7 +45,7 @@ export function Scan() {
   const handleRef = useRef(handle);
   handleRef.current = handle;
 
-  const shoot = () => (cam.state === 'ready' ? handle(() => cam.capture()) : handle(takePhoto));
+  const shoot = () => (cam.state === 'ready' ? handle(() => cam.captureSharp(), undefined, true) : handle(takePhoto));
 
   // Take the photo by itself when the receipt is held still. Nothing is saved: Check and save opens next.
   // On the phone the Ref No. is read first, and that same picture is used, so it is read only once.

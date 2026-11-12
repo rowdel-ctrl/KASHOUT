@@ -83,6 +83,8 @@ export const TL: Record<string, string> = {
   'Gallery': 'Gallery',
   'Take photo': 'Kumuha ng photo',
   'Type': 'I-type',
+  'Could not read the Ref No. Try the phone camera app.': 'Hindi nabasa ang Ref No. Subukan ang camera app ng phone.',
+  'Camera app': 'Camera app',
   'Photo taken. Opening…': 'Nakuha na ang photo. Binubuksan…',
   'Reading your receipt…': 'Binabasa ang resibo…',
 
