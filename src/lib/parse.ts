@@ -110,6 +110,56 @@ export function extractDateTime(text: string, now: number = Date.now()): number 
     const mon = MONTHS[m[2].toLowerCase()];
     if (mon !== undefined) return toMs(+m[1], mon, +m[3], +m[4], +m[5], m[6]);
   }
+  return fuzzyDateTime(text);
+}
+
+const MONTH_NAMES = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+
+function distance(a: string, b: string): number {
+  const d: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  }
+  return d[a.length][b.length];
+}
+
+/** A month word the reader may have spoiled: "0ctober", "Octoher", "Nov.". Returns 0 to 11, or null. */
+function fuzzyMonth(word: string): number | null {
+  const t = word.toLowerCase().replace(/\./g, '').replace(/0/g, 'o').replace(/5/g, 's').replace(/1/g, 'l').replace(/8/g, 'b');
+  if (t.length < 3) return null;
+  if (t.length === 3) return MONTHS[t] ?? null;
+  let best: number | null = null;
+  let bestD = 2;
+  MONTH_NAMES.forEach((name, i) => {
+    const dist = Math.min(distance(t, name), t.length === 4 && name.startsWith(t) ? 0 : 9);
+    if (dist < bestD) {
+      bestD = dist;
+      best = i;
+    }
+  });
+  return best;
+}
+
+const num = (s: string) => Number(s.replace(/[Oo]/g, '0').replace(/[Il|]/g, '1'));
+
+/**
+ * A date the text reader got a little wrong: "0ctober 26, 2026 O5.39 PN", or the date and the time on two lines.
+ * Every part is checked to be a real date and time, so a wrong guess is rare.
+ */
+function fuzzyDateTime(text: string): number | null {
+  const re = /([A-Za-z0-9]{3,9})\.?\s*(\d{1,2}|[OoIl]{1,2}\d?)\s*[,.]?\s+([12][0-9OoIl]{3})[\s,]*(?:at\s*)?([0-9OoIl]{1,2})\s*[:.;]\s*([0-9OoIl]{2})\s*([AaPp])\s*[MmNn]?/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    const mon = fuzzyMonth(m[1]);
+    if (mon == null) continue;
+    const day = num(m[2]);
+    const year = num(m[3]);
+    const hour = num(m[4]);
+    const min = num(m[5]);
+    if (day < 1 || day > 31 || year < 2000 || year > 2099 || hour < 1 || hour > 12 || min > 59) continue;
+    return toMs(year, mon, day, hour, min, /^[Pp]/.test(m[6]) ? 'PM' : 'AM');
+  }
   return null;
 }
 

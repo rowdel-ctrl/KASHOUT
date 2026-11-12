@@ -40,7 +40,10 @@ export async function draftFromPhoto(photo: PickedPhoto, ctx: DraftContext, know
     makeThumb(photo.webPath),
     makePhoto(photo.webPath),
   ]);
-  return { ...fromParsed(parseReceipt(text), ctx), thumb, photo: sharp, photoUrl: photo.webPath, rawText: text };
+  const d: Draft = { ...fromParsed(parseReceipt(text), ctx), thumb, photo: sharp, photoUrl: photo.webPath, rawText: text };
+  // The small grey date is the part the reader misses most. Use today, and say so, instead of leaving it empty.
+  if (text && d.txAt == null) return { ...d, txAt: Date.now(), dateGuess: true };
+  return d;
 }
 
 /** A receipt shared as text. There is no photo to keep. */

@@ -204,3 +204,30 @@ describe('GCash inbox message shared as text', () => {
     expect(parseReceipt('October 26, 2026 05:39 PM\n' + SHARED).txAt).toBe(new Date(2026, 9, 26, 17, 39).getTime());
   });
 });
+
+describe('a date the text reader got a little wrong', () => {
+  const want = new Date(2026, 9, 26, 17, 39).getTime();
+  const cases = [
+    'October 26, 2026 05:39 PM',
+    '0ctober 26, 2026 05:39 PM',
+    'Octoher 26, 2026 05:39 PM',
+    'October 26, 2026 O5:39 PM',
+    'October 26, 2026 05.39 PM',
+    'October 26, 2026 05:39 PN',
+    'October 26, 2026\n05:39 PM',
+    'October 26 2026 05:39 pm',
+    'Oct. 26, 2026 5:39 PM',
+  ];
+  for (const c of cases) {
+    it(`reads "${c.replace('\n', ' / ')}"`, () => {
+      expect(parseReceipt(c + '\nExpress Send Notification\nYou have received PHP 162.00 from JH*N DR*Y S. Ref. No. 0046554610929.').txAt).toBe(want);
+    });
+  }
+  it('does not invent a date from other numbers', () => {
+    expect(parseReceipt('Your new balance is PHP 417.63. Ref. No. 0046554610929. Version 12.40 PM').txAt).toBeNull();
+    expect(parseReceipt('Amount 3,500.00 Ref 9047 022 665601').txAt).toBeNull();
+  });
+  it('a day that does not exist is refused', () => {
+    expect(parseReceipt('0ctober 45, 2026 O5.39 PM').txAt).toBeNull();
+  });
+});
