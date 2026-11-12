@@ -107,7 +107,7 @@ function seed(): CashRecord[] {
     mk('6046809238211', 1500, 20, 'JU**N B.', '09171234507', yesterday(17, 20), 'Ana'),
     mk('6046809238222', 600, 10, 'CA**S D.', '09171234508', yesterday(12, 3), 'Tita Mel'),
     // Recorded, cash not given yet. One has been waiting more than 2 hours.
-    { ...mk('7000000000001', 285, 10, 'PE***O R.', '09171234509', ago(25), 'Ana'), status: 'pending' as const },
-    { ...mk('7000000000002', 1015, 20, '', '', ago(190), 'Ben'), status: 'pending' as const },
+    { ...mk('7000000000001', 285, 10, 'PE***O R.', '09171234509', now - 25 * 60_000, 'Ana'), status: 'pending' as const },
+    { ...mk('7000000000002', 1015, 20, '', '', now - 190 * 60_000, 'Ben'), status: 'pending' as const },
   ];
 }
