@@ -64,7 +64,15 @@ export function createFirebaseApi(cfg: FirebaseSettings): DataApi {
 
     async signIn() {
       if (Capacitor.isNativePlatform()) {
-        const res = await FirebaseAuthentication.signInWithGoogle({ skipNativeAuth: true });
+        // Newer phones use Android's Credential Manager. Some phones say "your device doesn't support
+        // credential manager". Then the older Google sign-in dialog is used instead.
+        let res;
+        try {
+          res = await FirebaseAuthentication.signInWithGoogle({ skipNativeAuth: true, useCredentialManager: true });
+        } catch (e) {
+          if (/cancel|dismiss|closed/i.test(String((e as Error)?.message ?? e))) throw e;
+          res = await FirebaseAuthentication.signInWithGoogle({ skipNativeAuth: true, useCredentialManager: false });
+        }
         const idToken = res.credential?.idToken;
         if (!idToken) throw new Error('Google sign-in did not return a token.');
         await signInWithCredential(auth, GoogleAuthProvider.credential(idToken));
