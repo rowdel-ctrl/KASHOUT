@@ -66,7 +66,7 @@ interface Ctx {
   batch: Batch | null;
   /** A batch that was set aside halfway, kept on this phone. */
   keptBatch: StoredBatch | null;
-  beginBatch: (ready: Draft[], skipped: BatchSkipped[]) => void;
+  beginBatch: (ready: Draft[], skipped: BatchSkipped[], saved?: number) => void;
   skipInBatch: () => void;
   /** Read a skipped receipt again. True when it could be read and is now ready to check. */
   retryInBatch: (i: number) => Promise<boolean>;
@@ -293,8 +293,8 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
   }, []);
 
   const beginBatch = useCallback(
-    (ready: Draft[], skipped: BatchSkipped[]) => {
-      const b: Batch = { ready, skipped, idx: 0, saved: 0 };
+    (ready: Draft[], skipped: BatchSkipped[], saved = 0) => {
+      const b: Batch = { ready, skipped, idx: 0, saved };
       setBatch(b);
       setStack(ready.length ? [{ name: 'home' }, { name: 'review', draft: ready[0], rid: ++reviewId.current }] : [{ name: 'home' }, { name: 'batchdone' }]);
     },
@@ -388,7 +388,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
     setKeptBatch(null);
     void clearBatchCopy();
     void cancelDraftReminder();
-    beginBatch(k.ready, k.skipped);
+    beginBatch(k.ready, k.skipped, k.saved);
   }, [keptBatch, beginBatch]);
 
   const dropBatch = useCallback(() => {

@@ -658,3 +658,9 @@ h1, h2, h3, .h1, .topbar h1, .sheet h2, .stat b, .rec .ref, .rec .amt, .bigref, 
 .skipitem .info small { font-size: 13px; font-weight: 600; color: var(--warn-text); }
 .skipitem .acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
 .skipitem .acts .btn { width: auto; height: 38px; padding: 0 18px; font-size: 14px; border-radius: 999px; box-shadow: none; font-weight: 600; }
+/* bigger taps for staff in a hurry */
+.hscroll .chip { height: 40px; }
+.tag.wallet { height: 40px; }
+.batchbar .btn-text { height: 40px; }
+.skipitem .acts .btn { height: 42px; }
+.dcard .tag.wallet { height: 34px; }
