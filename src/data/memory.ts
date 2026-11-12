@@ -80,23 +80,27 @@ export function createMemoryApi(): DataApi {
 }
 
 function seed(): CashRecord[] {
-  const at = (h: number, m: number, dayOffset = 0) => {
-    const d = new Date();
-    d.setDate(d.getDate() + dayOffset);
+  const now = Date.now();
+  const startOfToday = new Date(now).setHours(0, 0, 0, 0);
+  // Sample records from earlier today (always in the past), and two from yesterday.
+  const ago = (mins: number) => Math.max(startOfToday + 60_000, now - mins * 60_000);
+  const yesterday = (h: number, m: number) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 1);
     d.setHours(h, m, 0, 0);
     return d.getTime();
   };
-  const mk = (ref: string, amount: number, fee: number, name: string, number: string, h: number, m: number, by: string, day = 0): CashRecord => ({
-    id: ref, ref, amount, fee, name, number, txAt: at(h, m - 1, day), savedAt: at(h, m, day), by, byUid: 'demo-' + by.toLowerCase(),
+  const mk = (ref: string, amount: number, fee: number, name: string, number: string, savedAt: number, by: string): CashRecord => ({
+    id: ref, ref, amount, fee, name, number, txAt: savedAt - 60_000, savedAt, by, byUid: 'demo-' + by.toLowerCase(),
   });
   return [
-    mk('6046809238177', 500, 10, 'EX*****S L.', '09171234501', 15, 42, 'Ana'),
-    mk('9046837792836', 300, 10, 'JO**N D.', '09181234502', 14, 55, 'Ana'),
-    mk('0046809244410', 1000, 15, 'LU**Y T.', '09171234503', 14, 31, 'Tita Mel'),
-    mk('6046809238188', 250, 10, 'AN***O P.', '09171234504', 13, 40, 'Ben'),
-    mk('6046809238199', 2000, 25, 'RO**L S.', '09171234505', 11, 12, 'Ben'),
-    mk('6046809238200', 800, 15, 'MI**A C.', '09171234506', 10, 5, 'Ana'),
-    mk('6046809238211', 1500, 20, 'JU**N B.', '09171234507', 17, 20, 'Ana', -1),
-    mk('6046809238222', 600, 10, 'CA**S D.', '09171234508', 12, 3, 'Tita Mel', -1),
+    mk('6046809238177', 500, 10, 'EX*****S L.', '09171234501', ago(20), 'Ana'),
+    mk('9046837792836', 300, 10, 'JO**N D.', '09181234502', ago(80), 'Ana'),
+    mk('0046809244410', 1000, 15, 'LU**Y T.', '09171234503', ago(140), 'Tita Mel'),
+    mk('6046809238188', 250, 10, 'AN***O P.', '09171234504', ago(200), 'Ben'),
+    mk('6046809238199', 2000, 25, 'RO**L S.', '09171234505', ago(260), 'Ben'),
+    mk('6046809238200', 800, 15, 'MI**A C.', '09171234506', ago(320), 'Ana'),
+    mk('6046809238211', 1500, 20, 'JU**N B.', '09171234507', yesterday(17, 20), 'Ana'),
+    mk('6046809238222', 600, 10, 'CA**S D.', '09171234508', yesterday(12, 3), 'Tita Mel'),
   ];
 }
