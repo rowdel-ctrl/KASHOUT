@@ -6,6 +6,8 @@ import { readText } from '../native/ocr';
 import { pickPhoto, takePhoto, type PickedPhoto } from '../native/photo';
 import { isNative } from '../native/platform';
 import { draftFromPhoto, emptyDraft } from './draft';
+import type { Draft } from '../lib/types';
+import { fillMissing } from './retry';
 import { Icon } from './icons';
 import { useApp } from './context';
 
@@ -17,7 +19,7 @@ type Look = { kind: 'nothing' | 'moving' | 'steady' | 'noref' | 'found' };
 /** Still for this long, then the Ref No. is checked. Short on purpose: it must feel instant. */
 const RECHECK_MS = 900;
 
-export function Scan() {
+export function Scan({ retake }: { retake?: Draft }) {
   const { fees, replace, back, toast, settings, t } = useApp();
   const cam = useLiveCamera();
   const [busy, setBusy] = useState(false);
@@ -29,7 +31,11 @@ export function Scan() {
       const photo = await get();
       if (!photo) return;
       setBusy(true);
-      const draft = await draftFromPhoto(photo, { fees, settings }, knownText);
+      let draft = await draftFromPhoto(photo, { fees, settings }, knownText);
+      if (retake) {
+        // A new picture of the same receipt: keep what was typed, fill what is still missing, use the new picture.
+        draft = { ...fillMissing(retake, draft.rawText ?? '', { fees, settings }), thumb: draft.thumb ?? retake.thumb, photo: draft.photo ?? retake.photo, photoUrl: draft.photoUrl ?? retake.photoUrl };
+      }
       if (!draft.rawText) toast(t('Could not read the photo. Please type the details.'), true);
       else if (live && !draft.refRead) {
         // The live picture was not clear enough. The phone's own camera app takes a sharper one.
@@ -131,6 +137,7 @@ export function Scan() {
           <Icon name="bolt" size={22} />
         </button>
       </div>
+      {retake && <div className="tip" style={{ fontWeight: 700 }}>{t('New picture of this receipt')}</div>}
       <div className="tip">{settings.autoCapture ? t('Hold the receipt inside the frame. The photo is taken for you.') : t('Fit the whole receipt inside the frame.')}</div>
 
       <div className={`viewport${settings.autoCapture ? ' auto' : ''}${ok ? ' ok' : ''}`} data-look={look.kind}>
@@ -167,7 +174,7 @@ export function Scan() {
           {t('Gallery')}
         </button>
         <button className="shutter" aria-label={t('Take photo')} disabled={cam.state === 'starting'} onClick={shoot} />
-        <button className="side" onClick={() => replace({ name: 'review', draft: emptyDraft() })}>
+        <button className="side" onClick={() => replace({ name: 'review', draft: retake ?? emptyDraft() })}>
           <span>
             <Icon name="text" size={26} color="#fff" />
           </span>

@@ -143,7 +143,7 @@ export const DEFAULT_FILTERS: Filters = { period: 'today', from: '', to: '', amo
 
 export type Route =
   | { name: 'home' }
-  | { name: 'scan' }
+  | { name: 'scan'; retake?: Draft }
   | { name: 'review'; draft: Draft }
   | { name: 'records'; period?: Period; status?: StatusFilter }
   | { name: 'detail'; id: string }

@@ -109,7 +109,7 @@ function ScanBars({ on, theme }: { on: boolean; theme: string }) {
 function Screen({ route }: { route: ReturnType<typeof useApp>['route'] }) {
   switch (route.name) {
     case 'home': return <Home />;
-    case 'scan': return <Scan />;
+    case 'scan': return <Scan retake={route.retake} />;
     case 'review': return <Review initial={route.draft} />;
     case 'records': return <Records key={route.status ?? 'all'} initialPeriod={route.period} initialStatus={route.status} />;
     case 'detail': return <Detail id={route.id} />;

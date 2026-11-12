@@ -574,3 +574,28 @@ h1, h2, h3, .h1, .topbar h1, .sheet h2, .stat b, .rec .ref, .rec .amt, .bigref, 
 .rec .tag { font-weight: 600; }
 .rec .ref { font-size: 16.5px; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rec .tag { font-size: 11.5px; padding: 0 8px; height: 22px; }
+
+/* ---------- redesign: Check and save ---------- */
+.review { padding-bottom: calc(210px + var(--bottom)); }
+.amtcard { display: flex; gap: 14px; align-items: stretch; background: var(--card); border-radius: 22px; padding: 16px; box-shadow: var(--shadow); margin-top: 8px; }
+.amtleft { flex: 1; min-width: 0; }
+.amtleft > label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); }
+.amtin { display: flex; align-items: baseline; gap: 2px; font-family: var(--head); font-weight: 800; font-size: 36px; line-height: 1.15; color: var(--green); margin: 2px 0 10px; }
+.amtin input { border: 0; outline: 0; background: none; font: inherit; color: inherit; width: 100%; min-width: 0; padding: 0; }
+.amtin.warn { color: var(--warn-text); }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+.tag.wallet { height: 34px; padding: 0 12px; gap: 7px; background: #F1ECE1; color: var(--ink); font-size: 14px; font-weight: 600; border: 0; border-radius: 999px; margin-top: 0; }
+.rthumb { width: 76px; flex: none; border: 1.5px solid var(--field); border-radius: 14px; background: var(--bg); padding: 0; overflow: hidden; }
+.rthumb:disabled { opacity: 1; }
+.rthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rthumb span { display: flex; flex-direction: column; gap: 6px; padding: 10px; }
+.rthumb i { height: 5px; border-radius: 3px; background: #D8CFBD; }
+.missingbox { margin-top: 12px; border-radius: 18px; background: var(--warn-bg); border: 1.5px solid var(--amber); padding: 12px 14px; color: var(--warn-text); display: flex; flex-direction: column; gap: 6px; }
+.missingbox b { font-size: 15px; font-weight: 700; }
+.missingbox > span { font-size: 13.5px; font-weight: 500; }
+.missingbox .two { margin-top: 4px; }
+.missingbox .btn { height: 44px; font-size: 15px; box-shadow: none; border-radius: 14px; }
+.fieldscard { margin-top: 12px; }
+.fieldscard .field { margin-top: 14px; }
+.fieldscard .box { min-height: 52px; border-radius: 14px; font-size: 16px; }
+.fieldscard .box.big { font-size: 22px; min-height: 56px; }

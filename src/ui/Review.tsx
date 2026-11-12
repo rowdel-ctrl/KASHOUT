@@ -1,22 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { feeFor, tierLabel } from '../lib/fees';
-import { dateTime, formatRef, fromLocalInput, parseMoney, peso, peso2, toLocalInput } from '../lib/format';
+import { dateTime, formatRef, fromLocalInput, isValidRef, parseMoney, peso, peso2, toLocalInput } from '../lib/format';
 import { nameForNumber } from '../lib/identity';
 import { reviewWarnings } from '../lib/warnings';
 import { isPending } from '../lib/records';
 import { isMeaningful } from '../native/draftStore';
 import type { CashRecord, Draft } from '../lib/types';
+import { walletChoices, walletColor } from '../lib/wallets';
 import { Icon } from './icons';
+import { missingFields, rereadSamePicture } from './retry';
 import { PhotoViewer } from './PhotoViewer';
 import { Sheet, TopBar, WarnBar } from './components';
 import { useApp } from './context';
 
 export function Review({ initial }: { initial: Draft }) {
-  const { settings, fees, records, saveDraft, markPaid, tab, go, t, keepDraft, dropDraft, setLeaveGuard } = useApp();
+  const { settings, fees, records, saveDraft, markPaid, tab, go, replace, toast, t, keepDraft, dropDraft, setLeaveGuard } = useApp();
   const [d, setD] = useState<Draft>(initial);
   const [dup, setDup] = useState<CashRecord | null>(null);
   const [saveAs, setSaveAs] = useState<'paid' | 'pending'>('paid');
-  const [sheet, setSheet] = useState<'fee' | 'customer' | 'read' | null>(null);
+  const [sheet, setSheet] = useState<'fee' | 'customer' | 'read' | 'wallet' | null>(null);
+  // Reading a missing field again: 0 = not tried, 1 = tried once and still missing.
+  const [tries, setTries] = useState(0);
+  const [rereading, setRereading] = useState(false);
   const [viewing, setViewing] = useState(false);
   // "This is different": the person says the saved record with this reference is another cash-out.
   const [differs, setDiffers] = useState(false);
@@ -24,7 +29,7 @@ export function Review({ initial }: { initial: Draft }) {
   const nameTouched = useRef(false);
 
   const refDigits = d.ref.replace(/\s+/g, '');
-  const refOk = /^\d{13}$/.test(refDigits);
+  const refOk = isValidRef(refDigits);
   const amount = parseMoney(d.amount);
   const warns = useMemo(() => reviewWarnings(d, settings), [d, settings]);
   const has = (k: string) => warns.some((w) => w.key === k);
@@ -100,6 +105,27 @@ export function Review({ initial }: { initial: Draft }) {
     tab({ name: 'home' });
   };
 
+  const missing = d.rawText !== undefined || photo ? missingFields(d) : [];
+  const source = d.source || 'GCash';
+
+  async function tryAgain() {
+    setRereading(true);
+    const before = missingFields(d).length;
+    const next = await rereadSamePicture(d, { fees, settings });
+    setRereading(false);
+    setD(next);
+    if (missingFields(next).length < before) {
+      setTries(0);
+      toast(t('Read it! The missing fields are filled in.'));
+    } else setTries((n) => n + 1);
+  }
+  function newPicture() {
+    // Keep what is here, so going back from the camera does not lose it.
+    replace({ name: 'review', draft: d });
+    go({ name: 'scan', retake: d });
+  }
+  const what = (k: string) => (k === 'reference' ? t('Reference number') : k === 'amount' ? t('Amount') : t('Date and time'));
+
   return (
     <>
       <main className="page review">
@@ -114,56 +140,75 @@ export function Review({ initial }: { initial: Draft }) {
           </div>
         )}
 
-        <div className="photo-card">
-          {photo ? <img className="thumb" src={d.thumb ?? photo} alt="" /> : <div className="thumb" aria-hidden="true" />}
-          <div>
-            <b>{photo ? t('We read this from your photo') : t('Type the receipt details')}</b>
-            <p>{photo ? t('Check each box. Tap one to fix it.') : t('Copy them from the GCash receipt.')}</p>
-            {photo && (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button className="link" onClick={() => setViewing(true)}>
-                  {t('View photo')}
-                </button>
-                {d.rawText !== undefined && (
-                  <button className="link" onClick={() => setSheet('read')}>
-                    {t('What the app read')}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="field">
-          <label htmlFor="ref">{t('Reference number')}</label>
-          <input id="ref" className={`box big ${refOk ? 'ok' : 'warn'}`} inputMode="numeric" autoComplete="off" value={d.ref} onChange={(e) => setD({ ...d, ref: e.target.value })} />
-          <div className={`note${refOk ? ' good' : ''}`}>{refOk ? t('13 digits ✓') : t('{n} digits. It should be 13.', { n: refDigits.length })}</div>
-        </div>
-
-        <div className="two">
-          <div className="field">
+        <div className="amtcard">
+          <div className="amtleft">
             <label htmlFor="amt">{t('Amount')}</label>
-            <input id="amt" className={`box big${has('big') ? ' warn' : ''}`} inputMode="decimal" autoComplete="off" value={d.amount} onChange={(e) => setAmount(e.target.value)} />
-          </div>
-          <div className="field">
-            <span className="lab">{t('Charge')}</span>
-            <button className="box big" aria-haspopup="dialog" aria-label={t('Charge {amount}. Change', { amount: peso2(feeNum) })} onClick={() => setSheet('fee')}>
-              <span>{d.fee ? peso(feeNum) : '—'}</span>
-              <Icon name="down" size={18} />
+            <div className={`amtin${has('big') ? ' warn' : ''}`}>
+              <span aria-hidden="true">₱</span>
+              <input id="amt" inputMode="decimal" autoComplete="off" placeholder="0.00" value={d.amount} onChange={(e) => setAmount(e.target.value)} />
+            </div>
+            {has('big') && <div className="note">{t('Above your {limit} limit', { limit: peso(settings.bigLimit) })}</div>}
+            <button className="tag wallet" aria-haspopup="dialog" aria-label={t('Where the money came from: {name}. Change', { name: source })} onClick={() => setSheet('wallet')}>
+              <i className="dot" style={{ background: walletColor(source) }} />
+              {source}
+              <Icon name="down" size={14} />
             </button>
           </div>
+          <button className="rthumb" aria-label={photo ? t('View photo') : t('No photo')} disabled={!photo} onClick={() => setViewing(true)}>
+            {photo ? <img src={d.thumb ?? photo} alt="" /> : <span aria-hidden="true"><i /><i /><i /></span>}
+          </button>
         </div>
-        {has('big') && <div className="note">{t('Above your {limit} limit', { limit: peso(settings.bigLimit) })}</div>}
 
-        <div className="field">
-          <label htmlFor="dt">{t('Date and time')}</label>
-          <input id="dt" type="datetime-local" className={`box${has('old') || has('date') ? ' warn' : ''}`} value={toLocalInput(d.txAt)} onChange={(e) => setD({ ...d, txAt: fromLocalInput(e.target.value), dateGuess: false })} />
+        {missing.length > 0 && !showDup && (
+          <div className="missingbox" role="status">
+            <b>{t(tries ? 'Still could not read: {what}' : 'Could not read: {what}', { what: missing.map(what).join(', ') })}</b>
+            {tries > 0 && <span>{t('Hold the camera close to it, or type it below.')}</span>}
+            <div className="two">
+              {tries > 0 ? (
+                <button className="btn btn-primary" onClick={newPicture}>
+                  {t('New picture')}
+                </button>
+              ) : (
+                <button className="btn btn-primary" disabled={rereading} onClick={() => void tryAgain()}>
+                  {rereading ? t('Reading again…') : t('Try again')}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="card fieldscard">
+          <div className="field" style={{ marginTop: 0 }}>
+            <label htmlFor="ref">{t('Reference number')}</label>
+            <input
+              id="ref"
+              className={`box big ${refOk ? 'ok' : 'warn'}`}
+              inputMode={/[A-Za-z]/.test(d.ref) ? 'text' : 'numeric'}
+              autoComplete="off"
+              placeholder={t('13 digits')}
+              value={d.ref}
+              onChange={(e) => setD({ ...d, ref: e.target.value })}
+            />
+            {!refOk && refDigits.length > 0 && <div className="note">{t('{n} digits. It should be 13.', { n: refDigits.length })}</div>}
+          </div>
+
+          <div className="two">
+            <div className="field">
+              <span className="lab">{t('Charge')}</span>
+              <button className="box" aria-haspopup="dialog" aria-label={t('Charge {amount}. Change', { amount: peso2(feeNum) })} onClick={() => setSheet('fee')}>
+                <span>{d.fee ? peso(feeNum) : '—'}</span>
+                <Icon name="down" size={18} />
+              </button>
+            </div>
+            <div className="field" style={{ flex: 1.7 }}>
+              <label htmlFor="dt">{t('Date and time')}</label>
+              <input id="dt" type="datetime-local" className={`box${has('old') || has('date') ? ' warn' : ''}`} value={toLocalInput(d.txAt)} onChange={(e) => setD({ ...d, txAt: fromLocalInput(e.target.value), dateGuess: false })} />
+            </div>
+          </div>
           {has('old') && <div className="note">{t('This receipt is not from today')}</div>}
-          {has('date') && <div className="note">{t('The date is missing. Please set it.')}</div>}
           {d.dateGuess && <div className="note">{t('No date was found, so today was used. Change it if the receipt is older.')}</div>}
-        </div>
 
-        <div className="field">
+        <div className="field" style={{ marginTop: 14 }}>
           <span className="lab">{t('Customer')}</span>
           <button className="box" aria-haspopup="dialog" onClick={() => setSheet('customer')}>
             <span>{d.name || d.number ? `${d.name || t('No name')} · ${d.number || t('No number')}` : t('Add name and number')}</span>
@@ -171,6 +216,12 @@ export function Review({ initial }: { initial: Draft }) {
           </button>
           {d.autoName && d.name && <div className="note good">{t('Name filled in from an earlier record. Tap to change.')}</div>}
         </div>
+        </div>
+        {d.rawText !== undefined && (
+          <button className="btn btn-text" style={{ height: 40, fontSize: 13 }} onClick={() => setSheet('read')}>
+            {t('What the app read')}
+          </button>
+        )}
       </main>
 
       <div className="savebar">
@@ -293,6 +344,31 @@ export function Review({ initial }: { initial: Draft }) {
           <button className="btn btn-soft" style={{ marginTop: 14 }} onClick={() => setSheet(null)}>
             {t('Done')}
           </button>
+        </Sheet>
+      )}
+
+      {sheet === 'wallet' && (
+        <Sheet title={t('Where did the money come from?')} onClose={() => setSheet(null)}>
+          <div role="radiogroup" aria-label={t('Where did the money come from?')} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {walletChoices(source).map((n) => (
+              <button
+                key={n}
+                role="radio"
+                aria-checked={n === source}
+                className={`opt${n === source ? ' on' : ''}`}
+                onClick={() => {
+                  setD({ ...d, source: n });
+                  setSheet(null);
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <i className="dot" style={{ background: walletColor(n) }} />
+                  {n}
+                </span>
+                {n === source && <Icon name="check" size={22} />}
+              </button>
+            ))}
+          </div>
         </Sheet>
       )}
 
