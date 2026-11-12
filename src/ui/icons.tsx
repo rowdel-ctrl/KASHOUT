@@ -1,35 +1,58 @@
-/** Filled icons, one style everywhere. */
-const FILL: Record<string, string> = {
-  home: 'M12 2.5L2.5 10.5V21h6.5v-6h6v6h6.5V10.5z',
-  list: 'M3 5h18v3H3zM3 10.5h18v3H3zM3 16h18v3H3z',
-  gear: 'M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zM10.2 2h3.6l.5 2.6a7.7 7.7 0 011.8.8l2.3-1.3 1.8 3.1-2 1.8c.1.6.1 1.3 0 1.9l2 1.8-1.8 3.1-2.3-1.3a7.7 7.7 0 01-1.8.8L13.8 22h-3.6l-.5-2.6a7.7 7.7 0 01-1.8-.8l-2.3 1.3-1.8-3.1 2-1.8a6.9 6.9 0 010-1.9l-2-1.8 1.8-3.1 2.3 1.3c.6-.3 1.2-.6 1.8-.8z',
-  camera: 'M9 3.5L7.6 5H4.5A2.5 2.5 0 002 7.5v10A2.5 2.5 0 004.5 20h15a2.5 2.5 0 002.5-2.5v-10A2.5 2.5 0 0019.5 5h-3.1L15 3.5H9zM12 8.5a4.5 4.5 0 110 9 4.5 4.5 0 010-9z',
-  image: 'M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm0 2v9.6l4.3-4.3a1 1 0 011.4 0L14 16l2.3-2.3a1 1 0 011.4 0L20 16V6H4zm13 2.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z',
-  bolt: 'M13.5 2L4 14h6.5L9 22l10.5-12.5H13z',
-  text: 'M4 6h16v3H4zm0 5h10v3H4zm0 5h7v3H4z',
-  search: 'M10 2a8 8 0 016.3 12.9l5.4 5.4-1.4 1.4-5.4-5.4A8 8 0 1110 2zm0 2a6 6 0 100 12 6 6 0 000-12z',
-  filter: 'M3 5h18l-7 8v6l-4 2v-8z',
-  down: 'M6 9l6 6 6-6z',
-  up: 'M6 15l6-6 6 6z',
-  right: 'M9 6l6 6-6 6z',
-  back: 'M15 5l-7 7 7 7z',
-  close: 'M5.6 4.2L12 10.6l6.4-6.4 1.4 1.4-6.4 6.4 6.4 6.4-1.4 1.4-6.4-6.4-6.4 6.4-1.4-1.4 6.4-6.4-6.4-6.4z',
-  check: 'M9 16.2l-4.2-4.2-1.4 1.4L9 19l12-12-1.4-1.4z',
-  warn: 'M12 2L1 21h22L12 2zm-1 7h2v6h-2zm0 8h2v2h-2z',
-  calendar: 'M7 2h2v2h6V2h2v2h3v18H4V4h3zm-1 8v10h12V10z',
-  share: 'M12 3l5 5-1.4 1.4L13 6.8V16h-2V6.8L8.4 9.4 7 8l5-5zM5 14h2v5h10v-5h2v7H5z',
-  download: 'M11 3h2v9.2l2.6-2.6L17 11l-5 5-5-5 1.4-1.4L11 12.2zM5 18h14v3H5z',
-  send: 'M2 21l21-9L2 3v7l15 2-15 2z',
-  trash: 'M9 3h6l1 2h4v2H4V5h4zM6 9h12l-1 12H7z',
-  person: 'M12 12a4.5 4.5 0 100-9 4.5 4.5 0 000 9zm0 2c-4.4 0-8 2.2-8 5v2h16v-2c0-2.8-3.6-5-8-5z',
-  edit: 'M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z',
-  clock: 'M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5.4l3.6 2.1-1 1.7L11 13V7z',
+/**
+ * Line icons with a soft colour fill, one style everywhere.
+ * 24 x 24 shapes drawn with a thin rounded line and room around them (not cramped).
+ * The names are the ones the screens already use.
+ */
+const SHAPES: Record<string, string> = {
+  home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+  list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>',
+  gear: '<path d="M4 8h9M19 8h1M4 16h1M11 16h9"/><circle cx="16" cy="8" r="2.5"/><circle cx="8" cy="16" r="2.5"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+  image: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+  bolt: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  text: '<path d="M4 7V4h16v3M9 20h6M12 4v16"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  filter: '<path d="M10 20a1 1 0 0 0 .55.9l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .52-1.34L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.74 1.67l7.22 7.99A2 2 0 0 1 10 14z"/>',
+  down: '<path d="m6 9 6 6 6-6"/>',
+  up: '<path d="m18 15-6-6-6 6"/>',
+  right: '<path d="m9 18 6-6-6-6"/>',
+  back: '<path d="m15 18-6-6 6-6"/>',
+  close: '<path d="M18 6 6 18M6 6l12 12"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  warn: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/>',
+  calendar: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/>',
+  send: '<path d="M14.54 21.69a.5.5 0 0 0 .94-.02l6.5-19a.5.5 0 0 0-.64-.64l-19 6.5a.5.5 0 0 0-.02.94l7.93 3.18a2 2 0 0 1 1.11 1.1z"/><path d="m21.85 2.15-10.94 10.94"/>',
+  trash: '<path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6"/>',
+  person: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  edit: '<path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/>',
 };
 
-export function Icon({ name, size = 24, color = 'currentColor' }: { name: string; size?: number; color?: string }) {
+/** These get a soft colour inside. The others are plain lines. */
+const SOFT = new Set(['home', 'gear', 'camera', 'image', 'bolt', 'warn', 'person', 'clock', 'send', 'filter']);
+
+export function Icon({ name, size = 24, color = 'currentColor', soft }: { name: string; size?: number; color?: string; soft?: boolean }) {
+  const filled = soft ?? SOFT.has(name);
+  // The drawing sits inside a bigger box, so there is room around it. The box is scaled up
+  // to keep the same visible size, and pulled back with a margin so layouts do not move.
+  const box = Math.round(size * 1.25);
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path fill={color} d={FILL[name]} />
-    </svg>
+    <svg
+      width={box}
+      height={box}
+      viewBox="-3 -3 30 30"
+      fill={filled ? color : 'none'}
+      fillOpacity={filled ? 0.18 : undefined}
+      stroke={color}
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      style={{ margin: -(box - size) / 2, flex: 'none' }}
+      dangerouslySetInnerHTML={{ __html: SHAPES[name] ?? '' }}
+    />
   );
 }

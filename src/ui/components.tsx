@@ -29,7 +29,7 @@ export function NavBar({ active }: { active: 'home' | 'records' | 'settings' }) 
       {items.map((i) => (
         <button key={i.key} className={active === i.key ? 'on' : ''} aria-current={active === i.key ? 'page' : undefined} onClick={() => tab(i.route)}>
           <i>
-            <Icon name={i.icon} />
+            <Icon name={i.icon} size={24} soft={active === i.key} />
           </i>
           {i.label}
         </button>
@@ -145,7 +145,7 @@ export function RecRow({ r, onClick, fresh, selected, q, onMarkPaid }: { r: Cash
     <span className="right">
       <div className="amt">{field === 'amount' ? <mark>{amountText}</mark> : amountText}</div>
       {pending ? (
-        <div className={`tag${late ? ' late' : ''}`}>{late ? `${t('Pending')} · ${waitText(waited, tl)}` : t('Pending')}</div>
+        <div className={`tag${late ? ' late' : ''}`}>{late ? `${waitText(waited, tl)} · ${t('late')}` : waitText(waited, tl)}</div>
       ) : (
         <div className="when">{timeOf(whenOf(r))}</div>
       )}

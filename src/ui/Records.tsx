@@ -2,7 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { api } from '../data';
 import { shareCsv, sharePdf } from '../lib/export';
 import { dateTime, formatRef, peso, peso2, waitText } from '../lib/format';
-import { LATE_MS, activeFilterCount, applyFilters, isPending, periodLabel, staffNames, summarize, whenOf } from '../lib/records';
+import { LATE_MS, activeFilterCount, applyFilters, dayLabel, groupByDay, isPending, periodLabel, staffNames, summarize, whenOf } from '../lib/records';
 import { DEFAULT_FILTERS, type AmountBand, type Filters, type Period, type StatusFilter } from '../lib/types';
 import { sendNtfy } from '../native/alerts';
 import { Icon } from './icons';
@@ -32,9 +32,8 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
   const tl = settings.lang === 'tl';
   const wide = useWide();
   const [f, setF] = useState<Filters>({ ...DEFAULT_FILTERS, period: initialPeriod ?? 'today', status: initialStatus ?? 'all' });
-  const [sheet, setSheet] = useState<'period' | 'filters' | 'export' | null>(null);
+  const [sheet, setSheet] = useState<'period' | 'filters' | 'closing' | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [showWho, setShowWho] = useState(false);
   const [limit, setLimit] = useState(100);
 
   const q = useDeferredValue(f.q.trim());
@@ -44,6 +43,9 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
   const sum = useMemo(() => summarize(shown), [shown]);
   const labelEn = searching ? 'Search results' : periodLabel(f);
   const label = t(labelEn);
+  const pendingView = f.status === 'pending';
+  // Grouped by day, except search results, which are ordered by how well they match.
+  const groups = useMemo(() => (searching ? [] : groupByDay(shown.slice(0, limit), Date.now(), pendingView)), [shown, limit, searching, pendingView]);
   const maxN = Math.max(1, ...sum.people.map((p) => p.n));
   const sel = wide ? (shown.find((r) => r.id === selected) ?? shown[0] ?? null) : null;
   const filters = activeFilterCount(f);
@@ -63,24 +65,34 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
     toast(ok ? t('Summary sent') : t('Could not send. Check your internet.'), !ok);
   }
 
+  const rowFor = (r: CashRecord) => (
+    <RecRow
+      key={r.id}
+      r={r}
+      selected={wide && sel?.id === r.id}
+      q={searching ? q : undefined}
+      onMarkPaid={() => markPaid(r)}
+      onClick={() => (wide ? setSelected(r.id) : go({ name: 'detail', id: r.id }))}
+    />
+  );
+
   const list = (
     <>
-      <div className="count">
-        {shown.length} {shown.length === 1 ? (searching ? t('result') : t('record')) : t('records')}
-        {searching && shown.length > 0 && shown.length !== 1 ? ` · ${t('best matches first')}` : ''}
-      </div>
-      <div className="list">
-        {shown.slice(0, limit).map((r) => (
-          <RecRow
-            key={r.id}
-            r={r}
-            selected={wide && sel?.id === r.id}
-            q={searching ? q : undefined}
-            onMarkPaid={() => markPaid(r)}
-            onClick={() => (wide ? setSelected(r.id) : go({ name: 'detail', id: r.id }))}
-          />
-        ))}
-      </div>
+      {searching ? (
+        <div className="list">{shown.slice(0, limit).map(rowFor)}</div>
+      ) : (
+        groups.map((g) => (
+          <section key={g.key} className="daygroup" aria-label={t(dayLabel(g))}>
+            <div className="dayhead">
+              <span>{t(dayLabel(g))}</span>
+              <span>
+                {peso(g.total)} · {g.count}
+              </span>
+            </div>
+            <div className="list">{g.records.map(rowFor)}</div>
+          </section>
+        ))
+      )}
       {shown.length === 0 && (
         <div className="empty">
           {searching ? (
@@ -102,65 +114,50 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
     </>
   );
 
+  const tab = (value: StatusFilter, text: string, badge?: number) => (
+    <button className={f.status === value ? 'on' : ''} aria-pressed={f.status === value} onClick={() => setF({ ...f, status: value })}>
+      {text}
+      {badge ? <b>{badge}</b> : null}
+    </button>
+  );
+
   return (
     <>
       <main className="page wide has-nav">
-        <h1 className="h1">{t('Records')}</h1>
+        <div className="rhead">
+          <h1 className="h1">{t('Records')}</h1>
+          <button className="round tint" aria-label={t('Closing and export')} onClick={() => setSheet('closing')}>
+            <Icon name="download" size={22} />
+          </button>
+        </div>
 
         <div className={wide ? 'split' : undefined}>
           <div className="side">
-            <div className="searchrow">
-              <div className="search">
-                <label htmlFor="q" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>
-                  {t('Search')}
-                </label>
-                <Icon name="search" size={20} />
-                <input id="q" type="search" inputMode="search" autoComplete="off" placeholder={t('Last digits of ref, name, number, amount')} value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} />
-                {f.q && (
-                  <button className="clear" aria-label={t('Clear search')} onClick={() => setF({ ...f, q: '' })}>
-                    <Icon name="close" size={20} />
-                  </button>
-                )}
-              </div>
+            <div className="searchbar">
+              <label htmlFor="q" className="sr">
+                {t('Search')}
+              </label>
+              <Icon name="search" size={20} />
+              <input id="q" type="search" inputMode="search" autoComplete="off" placeholder={t('Last digits of ref, name, number, amount')} value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} />
+              {f.q && (
+                <button className="clear" aria-label={t('Clear search')} onClick={() => setF({ ...f, q: '' })}>
+                  <Icon name="close" size={20} />
+                </button>
+              )}
               <button className="filterbtn" aria-label={t('Filters')} onClick={() => setSheet('filters')}>
-                <Icon name="filter" size={22} />
+                <Icon name="filter" size={20} />
                 {filters > 0 && <em>{filters}</em>}
               </button>
             </div>
 
             {searching && (
               <div className="searchnote" role="status">
-                <Icon name="search" size={18} /> {t('Searching all dates')}
+                <Icon name="search" size={18} /> {t('Searching all dates')} · {shown.length} {shown.length === 1 ? t('result') : t('results')}
+                {shown.length > 1 ? ` · ${t('best matches first')}` : ''}
               </div>
             )}
-            <div className="status3" role="group" aria-label={t('Status')}>
-              <button className={f.status === 'all' ? 'on' : ''} aria-pressed={f.status === 'all'} onClick={() => setF({ ...f, status: 'all' })}>
-                {t('All')}
-              </button>
-              <button className={`${f.status === 'pending' ? 'on p' : ''}`} aria-pressed={f.status === 'pending'} onClick={() => setF({ ...f, status: 'pending' })}>
-                {t('Pending')} {pendingAll.length > 0 && <b>{pendingAll.length}</b>}
-              </button>
-              <button className={f.status === 'paid' ? 'on' : ''} aria-pressed={f.status === 'paid'} onClick={() => setF({ ...f, status: 'paid' })}>
-                {t('Paid')}
-              </button>
-            </div>
-            <div className="chips">
-              <button className={`chip on${searching || f.status === 'pending' ? ' dim' : ''}`} aria-haspopup="dialog" onClick={() => setSheet('period')}>
-                {label} <Icon name="down" size={14} />
-              </button>
-              {f.amount !== 'any' && (
-                <button className="chip" onClick={() => setF({ ...f, amount: 'any' })} aria-label={t('Clear amount filter')}>
-                  {t(BANDS.find((b) => b.value === f.amount)!.label)} <Icon name="close" size={14} />
-                </button>
-              )}
-              {f.staff !== 'all' && (
-                <button className="chip" onClick={() => setF({ ...f, staff: 'all' })} aria-label={t('Clear staff filter')}>
-                  {f.staff} <Icon name="close" size={14} />
-                </button>
-              )}
-            </div>
 
-            {f.status === 'pending' ? (
+            {pendingView ? (
               <section className="waitcard" aria-label={t('Pending')}>
                 <small>{t('Pending')}</small>
                 <b>{peso2(sum.pendingTotal)}</b>
@@ -168,55 +165,53 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
                   {t('{n} pending', { n: sum.pendingCount })}
                   {sum.oldestPending != null && ` · ${t('oldest waiting {time}', { time: waitText(Date.now() - sum.oldestPending, tl) })}`}
                 </span>
-                <div className="acts">
-                  <button disabled={!shown.length} onClick={() => setSheet('export')}>
-                    <Icon name="download" size={18} /> {t('Export')}
-                  </button>
-                </div>
               </section>
             ) : (
-            <section className="closing" aria-label={t('Closing')}>
-              <div className="top">
-                <div>
-                  <small>{t('Closing')} · {label} · {t('Paid')}</small>
+              <section className="summary" aria-label={t('Closing')}>
+                <small>
+                  {t('Paid')} · {label}
+                </small>
+                <div className="line">
                   <b className="t">{peso(sum.total)}</b>
-                  <span className="sub">
-                    {sum.count} {sum.count === 1 ? t('cash-out') : t('cash-outs')} · {t('Fees')} {peso2(sum.fees)}
-                    {sum.pendingCount > 0 && ` · ${t('{n} pending', { n: sum.pendingCount })} ${peso(sum.pendingTotal)}`}
+                  <span className="pills">
+                    <i>{sum.count} {sum.count === 1 ? t('cash-out') : t('cash-outs')}</i>
+                    <i>
+                      {t('Fees')} {peso(sum.fees)}
+                    </i>
                   </span>
                 </div>
-                <button className="round" style={{ background: 'var(--green-soft)', color: 'var(--green-text)', boxShadow: 'none' }} aria-expanded={showWho} aria-label={t('Who saved')} onClick={() => setShowWho(!showWho)}>
-                  <Icon name={showWho ? 'up' : 'person'} size={22} />
-                </button>
-              </div>
-              {showWho && (
-                <div style={{ marginTop: 8 }}>
-                  {sum.people.map((p) => (
-                    <div className="who" key={p.name}>
-                      <div>
-                        <b>{p.name}</b>
-                        <span>
-                          {p.n} · {peso(p.sum)}
-                        </span>
-                      </div>
-                      <span className="track">
-                        <i style={{ width: `${(p.n / maxN) * 100}%` }} />
-                      </span>
-                    </div>
-                  ))}
-                  {sum.people.length === 0 && <div className="muted small">{t('No saves for this choice.')}</div>}
-                </div>
-              )}
-              <div className="acts">
-                <button onClick={sendSummary}>
-                  <Icon name="send" size={18} /> {t('Send')}
-                </button>
-                <button disabled={!shown.length} onClick={() => setSheet('export')}>
-                  <Icon name="download" size={18} /> {t('Export')}
-                </button>
-              </div>
-            </section>
+                {sum.pendingCount > 0 && (
+                  <button className="pendstrip" onClick={() => setF({ ...f, status: 'pending' })}>
+                    <Icon name="clock" size={20} />
+                    <span>
+                      {t('{n} pending', { n: sum.pendingCount })} · {peso(sum.pendingTotal)}
+                    </span>
+                    <Icon name="right" size={18} />
+                  </button>
+                )}
+              </section>
             )}
+
+            <div className="status3 rtabs" role="group" aria-label={t('Status')}>
+              {tab('all', t('All'))}
+              {tab('pending', t('Pending'), pendingAll.length)}
+              {tab('paid', t('Paid'))}
+            </div>
+            <div className="chips">
+              <button className={`chip on${searching || pendingView ? ' dim' : ''}`} aria-haspopup="dialog" onClick={() => setSheet('period')}>
+                {label} <Icon name="down" size={16} />
+              </button>
+              {f.amount !== 'any' && (
+                <button className="chip" onClick={() => setF({ ...f, amount: 'any' })} aria-label={t('Clear amount filter')}>
+                  {t(BANDS.find((b) => b.value === f.amount)!.label)} <Icon name="close" size={16} />
+                </button>
+              )}
+              {f.staff !== 'all' && (
+                <button className="chip" onClick={() => setF({ ...f, staff: 'all' })} aria-label={t('Clear staff filter')}>
+                  {f.staff} <Icon name="close" size={16} />
+                </button>
+              )}
+            </div>
 
             {list}
           </div>
@@ -300,33 +295,63 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
         </Sheet>
       )}
 
-      {sheet === 'export' && (
-        <Sheet title={t('Export {n} records', { n: shown.length })} onClose={() => setSheet(null)}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <button
-              className="opt"
-              onClick={() => {
-                setSheet(null);
-                void run(() => shareCsv(shown, f.period));
-              }}
-            >
-              <span>
-                Excel <small>· {t('CSV file')}</small>
+      {sheet === 'closing' && (
+        <Sheet title={`${t('Closing')} · ${label}`} onClose={() => setSheet(null)}>
+          <div className="tiles">
+            <div>
+              <small>{t('Paid')}</small>
+              <b>{peso(sum.total)}</b>
+            </div>
+            <div>
+              <small>{t('Fees')}</small>
+              <b>{peso2(sum.fees)}</b>
+            </div>
+            <div className="p">
+              <small>{t('Pending')}</small>
+              <b>{peso(sum.pendingTotal)}</b>
+            </div>
+          </div>
+          <div className="sec">{t('Who saved')}</div>
+          {sum.people.map((p) => (
+            <div className="who" key={p.name}>
+              <div>
+                <b>{p.name}</b>
+                <span>
+                  {p.n} · {peso(p.sum)}
+                </span>
+              </div>
+              <span className="track">
+                <i style={{ width: `${(p.n / maxN) * 100}%` }} />
               </span>
-              <Icon name="share" size={20} />
+            </div>
+          ))}
+          {sum.people.length === 0 && <div className="muted small">{t('No saves for this choice.')}</div>}
+          <div className="stack" style={{ marginTop: 18 }}>
+            <button className="btn btn-primary" onClick={() => void sendSummary()}>
+              {t('Send the summary')}
             </button>
-            <button
-              className="opt"
-              onClick={() => {
-                setSheet(null);
-                void run(() => sharePdf(shown, f.period, `Cash-outs · ${labelEn}`));
-              }}
-            >
-              <span>
-                PDF <small>· {t('to print or share')}</small>
-              </span>
-              <Icon name="share" size={20} />
-            </button>
+            <div className="two">
+              <button
+                className="btn btn-ghost"
+                disabled={!shown.length}
+                onClick={() => {
+                  setSheet(null);
+                  void run(() => shareCsv(shown, f.period));
+                }}
+              >
+                Excel
+              </button>
+              <button
+                className="btn btn-ghost"
+                disabled={!shown.length}
+                onClick={() => {
+                  setSheet(null);
+                  void run(() => sharePdf(shown, f.period, `Cash-outs · ${labelEn}`));
+                }}
+              >
+                PDF
+              </button>
+            </div>
           </div>
         </Sheet>
       )}

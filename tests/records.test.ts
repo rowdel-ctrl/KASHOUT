@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyFilters, inBand, periodLabel, staffNames, summarize } from '../src/lib/records';
+import { applyFilters, dayLabel, groupByDay, inBand, periodLabel, staffNames, summarize } from '../src/lib/records';
 import { reviewWarnings } from '../src/lib/warnings';
 import { DEFAULT_FILTERS, type CashRecord, type Draft, type Filters } from '../src/lib/types';
 
@@ -327,5 +327,41 @@ describe('pending and paid', () => {
     expect(waitText(3 * 3_600_000 + 10 * 60_000)).toBe('3 h');
     expect(waitText(50 * 3_600_000)).toBe('2 d');
     expect(waitText(-5)).toBe('0 min');
+  });
+});
+
+describe('groupByDay', () => {
+  const now = new Date(2026, 10, 12, 15, 0).getTime();
+  const at = (d: number, h: number) => new Date(2026, 10, d, h, 0).getTime();
+  const mk = (id: string, savedAt: number, amount: number, extra: Partial<CashRecord> = {}): CashRecord => ({
+    id, ref: id, amount, fee: 10, name: '', number: '', txAt: null, savedAt, by: 'Ana', byUid: 'a', ...extra,
+  });
+  const list = [mk('a', at(12, 14), 500), mk('b', at(12, 9), 300), mk('c', at(11, 16), 1000), mk('d', at(8, 10), 250), mk('p', at(12, 13), 700, { status: 'pending' })];
+
+  it('groups by the day the cash went out, newest day first', () => {
+    const g = groupByDay(list, now);
+    expect(g.map((x) => x.kind)).toEqual(['today', 'yesterday', 'date']);
+    expect(g.map((x) => x.count)).toEqual([3, 1, 1]);
+    expect(dayLabel(g[0])).toBe('Today');
+    expect(dayLabel(g[1])).toBe('Yesterday');
+    expect(dayLabel(g[2])).toBe('Nov 8');
+  });
+  it('the day total counts paid only, and newest record first inside a day', () => {
+    const g = groupByDay(list, now);
+    expect(g[0].total).toBe(800);
+    expect(g[0].records.map((r) => r.id)).toEqual(['a', 'p', 'b']);
+  });
+  it('in the Pending view the total is what is still waiting', () => {
+    const g = groupByDay(list.filter((r) => r.status === 'pending'), now, true);
+    expect(g).toHaveLength(1);
+    expect(g[0].total).toBe(700);
+  });
+  it('a record paid later sits on the day it was paid', () => {
+    const late = mk('x', at(10, 9), 400, { status: 'paid', paidAt: at(12, 11), paidBy: 'Ben', paidByUid: 'b' });
+    const g = groupByDay([late], now);
+    expect(g[0].kind).toBe('today');
+  });
+  it('no records gives no groups', () => {
+    expect(groupByDay([], now)).toEqual([]);
   });
 });

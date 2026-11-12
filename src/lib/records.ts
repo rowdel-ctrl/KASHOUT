@@ -1,4 +1,4 @@
-import { dayKey, formatRef } from './format';
+import { dayKey, formatRef, shortDate } from './format';
 import type { AmountBand, CashRecord, Filters, Period } from './types';
 
 const DAY = 86_400_000;
@@ -214,3 +214,38 @@ export function isPeriod(p: string): p is Period {
 }
 
 export { dayKey };
+
+export interface DayGroup {
+  key: string;
+  /** today, yesterday, or the date. */
+  kind: 'today' | 'yesterday' | 'date';
+  /** Start of that day (ms). */
+  day: number;
+  /** Cash given out that day. In the Pending view: the amount still waiting. */
+  total: number;
+  count: number;
+  records: CashRecord[];
+}
+
+/** Records grouped by the day the cash went out, newest day first. */
+export function groupByDay(list: CashRecord[], now: number = Date.now(), pendingView = false): DayGroup[] {
+  const today = dayKey(now);
+  const yesterday = dayKey(now - DAY);
+  const map = new Map<string, DayGroup>();
+  for (const r of [...list].sort((a, b) => whenOf(b) - whenOf(a))) {
+    const t = whenOf(r);
+    const key = dayKey(t);
+    let g = map.get(key);
+    if (!g) {
+      g = { key, kind: key === today ? 'today' : key === yesterday ? 'yesterday' : 'date', day: startOfDay(t), total: 0, count: 0, records: [] };
+      map.set(key, g);
+    }
+    g.records.push(r);
+    g.count += 1;
+    if (pendingView ? isPending(r) : !isPending(r)) g.total += r.amount;
+  }
+  return [...map.values()].sort((a, b) => b.day - a.day);
+}
+
+/** The text above a day group, in English. Translate it where it is shown. */
+export const dayLabel = (g: DayGroup): string => (g.kind === 'today' ? 'Today' : g.kind === 'yesterday' ? 'Yesterday' : shortDate(g.day));
