@@ -129,3 +129,38 @@ describe('alert topic', () => {
   });
 });
 
+describe('photos', () => {
+  const photo = (uid: string, over: Record<string, unknown> = {}) => ({ data: 'data:image/jpeg;base64,AAAA', byUid: uid, savedAt: Date.now(), ...over });
+
+  it('an allowed user can save and read a photo', async () => {
+    await assertSucceeds(setDoc(doc(ana(env), 'photos', 'r1'), photo('ana')));
+    await assertSucceeds(getDoc(doc(ana(env), 'photos', 'r1')));
+  });
+
+  it('blocked for accounts not on the list', async () => {
+    await assertFails(setDoc(doc(stranger(env), 'photos', 'r1'), photo('eve')));
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'photos', 'r1'), photo('ana')));
+    await assertFails(getDoc(doc(stranger(env), 'photos', 'r1')));
+  });
+
+  it('cannot save as someone else, cannot be edited, and has a size limit', async () => {
+    await assertFails(setDoc(doc(ana(env), 'photos', 'r1'), photo('ben')));
+    await assertSucceeds(setDoc(doc(ana(env), 'photos', 'r2'), photo('ana')));
+    await assertFails(setDoc(doc(ana(env), 'photos', 'r2'), photo('ana', { data: 'x' })));
+    await assertFails(setDoc(doc(ana(env), 'photos', 'big'), photo('ana', { data: 'x'.repeat(200001) })));
+    await assertFails(setDoc(doc(ana(env), 'photos', 'extra'), { ...photo('ana'), more: 1 }));
+  });
+
+  it('only the person who saved it can delete it; a missing photo can be deleted; old ones go', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'photos', 'mine'), photo('ana'));
+      await setDoc(doc(ctx.firestore(), 'photos', 'bens'), photo('ben'));
+      await setDoc(doc(ctx.firestore(), 'photos', 'old'), photo('ben', { savedAt: Date.now() - 400 * 86_400_000 }));
+    });
+    await assertSucceeds(deleteDoc(doc(ana(env), 'photos', 'mine')));
+    await assertFails(deleteDoc(doc(ana(env), 'photos', 'bens')));
+    await assertSucceeds(deleteDoc(doc(ana(env), 'photos', 'old')));
+    await assertSucceeds(deleteDoc(doc(ana(env), 'photos', 'never-existed')));
+  });
+});
+

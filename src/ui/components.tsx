@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { peso2, timeOf } from '../lib/format';
+import { highlight, matchRecord } from '../lib/records';
 import type { CashRecord, Route } from '../lib/types';
 import { useApp } from './context';
 import { Icon } from './icons';
@@ -101,16 +102,37 @@ export function OptionSheet<T extends string | number>({
 
 const initials = (name: string) => (name.replace(/[^A-Za-z]/g, '').slice(0, 2) || '?').toUpperCase();
 
-export function RecRow({ r, onClick, fresh, selected }: { r: CashRecord; onClick?: () => void; fresh?: boolean; selected?: boolean }) {
+function Hl({ text, q }: { text: string; q?: string }) {
+  if (!q) return <>{text}</>;
+  return (
+    <>
+      {highlight(text, q).map((p, i) => (p.hit ? <mark key={i}>{p.t}</mark> : <span key={i}>{p.t}</span>))}
+    </>
+  );
+}
+
+export function RecRow({ r, onClick, fresh, selected, q }: { r: CashRecord; onClick?: () => void; fresh?: boolean; selected?: boolean; q?: string }) {
   const green = r.ref.charCodeAt(r.ref.length - 1) % 2 === 0;
+  const field = q ? matchRecord(r, q) : null;
+  const amountText = peso2(r.amount);
   const inner = (
     <>
       <span className={`av${green ? ' g' : ''}`}>{initials(r.name)}</span>
       <span className="mid">
-        <div className="amt">{peso2(r.amount)}</div>
+        <div className="amt">{field === 'amount' ? <mark>{amountText}</mark> : amountText}</div>
         <div className="sub">
-          {r.name || 'No name'} · {r.by}
+          <Hl text={r.name || 'No name'} q={field === 'name' ? q : undefined} /> · <Hl text={r.by} q={field === 'staff' ? q : undefined} />
         </div>
+        {field === 'ref' && q && (
+          <div className="ext">
+            Ref <Hl text={r.ref} q={q.replace(/\s+/g, '')} />
+          </div>
+        )}
+        {field === 'number' && q && (
+          <div className="ext">
+            <Hl text={r.number} q={q.replace(/\s+/g, '')} />
+          </div>
+        )}
       </span>
       <span className="when">{timeOf(r.savedAt)}</span>
     </>

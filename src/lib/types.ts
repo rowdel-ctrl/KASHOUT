@@ -42,6 +42,9 @@ export interface Settings {
   savePhoto: boolean;
   /** The 3-card tour has been seen (or skipped). */
   tourDone: boolean;
+  /** The store's own name and number, learned from the records. They are left out of new records. */
+  ownNames: string[];
+  ownNumbers: string[];
   /** Daily reminder at 8 PM to open Closing. */
   closingReminder: boolean;
 }
@@ -53,6 +56,8 @@ export const DEFAULT_SETTINGS: Settings = {
   bigLimit: 10000,
   savePhoto: true,
   tourDone: false,
+  ownNames: [],
+  ownNumbers: [],
   closingReminder: false,
 };
 
@@ -69,6 +74,8 @@ export interface Draft {
   photoUrl?: string;
   /** The text the app read from the photo (for "What the app read"). */
   rawText?: string;
+  /** Sharper copy of the photo (about 600 pixels wide) saved with the record. */
+  photo?: string;
   /** False when the app could not find a valid 13-digit reference. */
   refRead: boolean;
 }

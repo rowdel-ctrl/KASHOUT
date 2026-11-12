@@ -25,6 +25,10 @@ export interface DataApi {
   /** Does not wait for the network. Problems arrive through onWriteError. */
   saveRecord(rec: NewRecord, opts: { allowDuplicate: boolean }): { id: string };
   deleteRecord(id: string): void;
+  /** Saves the sharper photo for a record, kept apart from the list so the list stays fast. Not awaited. */
+  savePhoto(id: string, dataUrl: string): void;
+  /** Loads a record's photo when it is opened. Null if there is none. */
+  getPhoto(id: string): Promise<string | null>;
   onWriteError(cb: (message: string, ref: string) => void): () => void;
   /** Deletes records older than one year. */
   purgeOld(): Promise<void>;

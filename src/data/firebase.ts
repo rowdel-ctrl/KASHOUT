@@ -119,6 +119,22 @@ export function createFirebaseApi(cfg: FirebaseSettings): DataApi {
 
     deleteRecord(id) {
       deleteDoc(doc(db, 'records', id)).catch(() => {});
+      deleteDoc(doc(db, 'photos', id)).catch(() => {});
+    },
+
+    savePhoto(id, dataUrl) {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
+      setDoc(doc(db, 'photos', id), { data: dataUrl, byUid: uid, savedAt: Date.now() }).catch(() => {});
+    },
+
+    async getPhoto(id) {
+      try {
+        const d = (await getDoc(doc(db, 'photos', id))).data()?.data;
+        return typeof d === 'string' ? d : null;
+      } catch {
+        return null;
+      }
     },
 
     onWriteError(cb) {
@@ -133,6 +149,7 @@ export function createFirebaseApi(cfg: FirebaseSettings): DataApi {
       const batch = writeBatch(db);
       snap.docs.forEach((d) => batch.delete(d.ref));
       await batch.commit();
+      snap.docs.forEach((d) => deleteDoc(doc(db, 'photos', d.id)).catch(() => {}));
     },
 
     async getAlertTopic() {

@@ -34,24 +34,76 @@ export function inBand(amount: number, band: AmountBand): boolean {
   }
 }
 
+export type MatchField = 'ref' | 'number' | 'amount' | 'name' | 'staff';
+
+const lower = (s: string) => s.toLowerCase();
+const noSpace = (s: string) => s.replace(/\s+/g, '');
+
+/** Which field of the record the search text matches, or null. */
+export function matchRecord(r: CashRecord, q: string): MatchField | null {
+  const t = lower(q.trim());
+  if (!t) return null;
+  const digits = noSpace(t);
+  const money = t.replace(/[₱,\s]/g, '');
+
+  if (/^\d{3,}$/.test(digits) && r.ref.includes(digits)) return 'ref';
+  if (/^[\d+●•*xX-]{3,}$/.test(digits) && lower(noSpace(r.number)).includes(lower(digits))) return 'number';
+  if (/^\d+(\.\d*)?$/.test(money) && (String(r.amount).startsWith(money) || r.amount.toFixed(2).startsWith(money))) return 'amount';
+  if (lower(r.name).includes(t)) return 'name';
+  if (lower(r.by).includes(t)) return 'staff';
+  return null;
+}
+
+/** Lower is better. Reference endings first, then exact amounts, then names that start with the text. */
+function score(r: CashRecord, q: string, field: MatchField): number {
+  const t = lower(q.trim());
+  const digits = noSpace(t);
+  if (field === 'ref') return r.ref.endsWith(digits) ? 0 : 1;
+  if (field === 'amount') return r.amount.toFixed(2) === t.replace(/[₱,\s]/g, '') || String(r.amount) === t.replace(/[₱,\s]/g, '') ? 1 : 2;
+  if (field === 'name') return lower(r.name).startsWith(t) ? 2 : 3;
+  return 3;
+}
+
+/**
+ * With search text: look through all dates (the date choice is ignored), newest first
+ * within the best matches. Without search text: the date, amount and staff choices apply.
+ */
 export function applyFilters(records: CashRecord[], f: Filters, now: number = Date.now()): CashRecord[] {
+  const term = f.q.trim();
+  const byAmountStaff = (r: CashRecord) => inBand(r.amount, f.amount) && (f.staff === 'all' || r.by === f.staff);
+
+  if (term) {
+    const hits: { r: CashRecord; s: number }[] = [];
+    for (const r of records) {
+      if (!byAmountStaff(r)) continue;
+      const field = matchRecord(r, term);
+      if (field) hits.push({ r, s: score(r, term, field) });
+    }
+    hits.sort((a, b) => a.s - b.s || b.r.savedAt - a.r.savedAt);
+    return hits.map((h) => h.r);
+  }
+
   const { from, to } = periodRange(f, now);
-  const term = f.q.trim().toLowerCase();
-  const digits = term.replace(/\s+/g, '');
-  return records.filter((r) => {
-    if (from != null && r.savedAt < from) return false;
-    if (to != null && r.savedAt >= to) return false;
-    if (!inBand(r.amount, f.amount)) return false;
-    if (f.staff !== 'all' && r.by !== f.staff) return false;
-    if (!term) return true;
-    return (
-      r.ref.includes(digits) ||
-      r.name.toLowerCase().includes(term) ||
-      r.number.replace(/\s+/g, '').includes(digits) ||
-      String(r.amount).includes(term.replace(/[₱,]/g, '')) ||
-      r.amount.toFixed(2).includes(term.replace(/[₱,]/g, ''))
-    );
-  });
+  return records.filter((r) => (from == null || r.savedAt >= from) && (to == null || r.savedAt < to) && byAmountStaff(r));
+}
+
+/** Splits text into pieces, marking the parts that match the search text. */
+export function highlight(text: string, q: string): { t: string; hit: boolean }[] {
+  const needle = q.trim();
+  if (!needle || !text) return [{ t: text, hit: false }];
+  const out: { t: string; hit: boolean }[] = [];
+  const lo = lower(text);
+  const n = lower(needle);
+  let i = 0;
+  for (;;) {
+    const j = lo.indexOf(n, i);
+    if (j < 0) break;
+    if (j > i) out.push({ t: text.slice(i, j), hit: false });
+    out.push({ t: text.slice(j, j + n.length), hit: true });
+    i = j + n.length;
+  }
+  if (i < text.length) out.push({ t: text.slice(i), hit: false });
+  return out.length ? out : [{ t: text, hit: false }];
 }
 
 export interface Summary {

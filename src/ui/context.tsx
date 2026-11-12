@@ -8,6 +8,7 @@ import {
 } from '../lib/types';
 import { sendNtfy } from '../native/alerts';
 import { buzzSaved } from '../native/haptics';
+import { detectOwn, mergeOwn } from '../lib/identity';
 import { isNative } from '../native/platform';
 import type { SyncState } from '../data/api';
 
@@ -108,6 +109,16 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
     };
   }, [toast]);
 
+  // Learn the store's own name and number from the records, and remember them.
+  const updateRef = useRef(updateSettings);
+  updateRef.current = updateSettings;
+  useEffect(() => {
+    if (records.length < 5) return;
+    const known = { names: settingsRef.current.ownNames, numbers: settingsRef.current.ownNumbers };
+    const next = mergeOwn(known, detectOwn(records));
+    if (next !== known) updateRef.current({ ownNames: next.names, ownNumbers: next.numbers });
+  }, [records]);
+
   const route = stack[stack.length - 1];
   const go = useCallback((r: Route) => setStack((s) => [...s, r]), []);
   const replace = useCallback((r: Route) => setStack((s) => [...s.slice(0, -1), r]), []);
@@ -139,9 +150,9 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
         savedAt: Date.now(),
         by: user.name,
         byUid: user.uid,
-        ...(s.savePhoto && d.thumb ? { thumb: d.thumb } : {}),
       };
       const { id } = api.saveRecord(rec, { allowDuplicate });
+      if (s.savePhoto && d.photo) api.savePhoto(id, d.photo);
       setUndo({ id, draft: d });
       window.clearTimeout(undoTimer.current);
       undoTimer.current = window.setTimeout(() => setUndo(null), 5000);

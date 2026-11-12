@@ -4,7 +4,8 @@ import { parseReceipt } from '../lib/parse';
 import type { Draft } from '../lib/types';
 import { useLiveCamera } from '../native/liveCamera';
 import { readText } from '../native/ocr';
-import { makeThumb, pickPhoto, takePhoto, type PickedPhoto } from '../native/photo';
+import { makePhoto, makeThumb, pickPhoto, takePhoto, type PickedPhoto } from '../native/photo';
+import { withoutOwn } from '../lib/identity';
 import { Icon } from './icons';
 import { useApp } from './context';
 
@@ -13,7 +14,7 @@ export function emptyDraft(): Draft {
 }
 
 export function Scan() {
-  const { fees, replace, back, toast } = useApp();
+  const { fees, replace, back, toast, settings } = useApp();
   const cam = useLiveCamera();
   const [busy, setBusy] = useState(false);
 
@@ -22,18 +23,21 @@ export function Scan() {
       const photo = await get();
       if (!photo) return;
       setBusy(true);
-      const [text, thumb] = await Promise.all([readText(photo).catch(() => ''), makeThumb(photo.webPath)]);
+      const [text, thumb, sharp] = await Promise.all([readText(photo).catch(() => ''), makeThumb(photo.webPath), makePhoto(photo.webPath)]);
       const p = parseReceipt(text);
       const fee = p.amount != null ? feeFor(p.amount, fees) : null;
+      // Photos of a customer's phone show the store's own name and number. Leave those out.
+      const who = withoutOwn(p.name, p.number, { names: settings.ownNames, numbers: settings.ownNumbers });
       const draft: Draft = {
         ref: p.ref,
         amount: p.amount != null ? p.amount.toFixed(2) : '',
         fee: fee != null ? fee.toFixed(2) : '',
         feeTouched: false,
-        name: p.name,
-        number: p.number,
+        name: who.name,
+        number: who.number,
         txAt: p.txAt,
         thumb,
+        photo: sharp,
         photoUrl: photo.webPath,
         rawText: text,
         refRead: p.refOk,

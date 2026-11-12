@@ -7,6 +7,7 @@ export function createMemoryApi(): DataApi {
   let signedIn = false;
   let records: CashRecord[] = seed();
   let fees: FeeTier[] | null = null;
+  const photos = new Map<string, string>();
   const authCbs = new Set<(u: AppUser | null) => void>();
   const recCbs = new Set<(u: RecordsUpdate) => void>();
   const feeCbs = new Set<(t: FeeTier[] | null) => void>();
@@ -47,7 +48,14 @@ export function createMemoryApi(): DataApi {
       emit();
       return { id };
     },
+    savePhoto(id, dataUrl) {
+      photos.set(id, dataUrl);
+    },
+    async getPhoto(id) {
+      return photos.get(id) ?? null;
+    },
     deleteRecord(id) {
+      photos.delete(id);
       records = records.filter((r) => r.id !== id);
       emit();
     },

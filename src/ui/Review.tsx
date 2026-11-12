@@ -4,6 +4,7 @@ import { dateTime, fromLocalInput, parseMoney, peso, peso2, toLocalInput } from 
 import { reviewWarnings } from '../lib/warnings';
 import type { CashRecord, Draft } from '../lib/types';
 import { Icon } from './icons';
+import { PhotoViewer } from './PhotoViewer';
 import { Sheet, TopBar, WarnBar } from './components';
 import { useApp } from './context';
 
@@ -227,14 +228,7 @@ export function Review({ initial }: { initial: Draft }) {
         </Sheet>
       )}
 
-      {viewing && photo && (
-        <div className="viewer" role="dialog" aria-modal="true" aria-label="Receipt photo" onClick={() => setViewing(false)}>
-          <img src={photo} alt="Receipt" />
-          <button className="round" aria-label="Close photo" onClick={() => setViewing(false)}>
-            <Icon name="close" size={22} />
-          </button>
-        </div>
-      )}
+      {viewing && photo && <PhotoViewer src={photo} onClose={() => setViewing(false)} />}
     </>
   );
 }

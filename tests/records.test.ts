@@ -131,3 +131,114 @@ describe('reviewWarnings', () => {
     expect(k).toEqual(['old', 'big', 'ref']);
   });
 });
+
+import { detectOwn, mergeOwn, withoutOwn } from '../src/lib/identity';
+import { highlight, matchRecord } from '../src/lib/records';
+
+describe('search', () => {
+  const S = [
+    rec('7046654574311', { amount: 150, name: 'NO••E L.', number: '09464007988', by: 'Rodel', savedAt: at(11, 8) }),
+    rec('9047022665601', { amount: 3500, name: 'MARIA S.', number: '09171234501', by: 'Ana', savedAt: at(10) }),
+    rec('6046809238177', { amount: 3500, name: 'JOSE D.', number: '+63 9●●●●●●4822', by: 'Ben', savedAt: at(2) }),
+    rec('0046809244410', { amount: 35, name: 'MARK T.', number: '09181234502', by: 'Ana', savedAt: at(9) }),
+  ];
+  const q = (text: string, over: Partial<Filters> = {}) => applyFilters(S, f({ q: text, ...over }), NOW).map((r) => r.ref);
+
+  it('ignores the date choice while searching (looks through all dates)', () => {
+    expect(q('9047', { period: 'today' })).toEqual(['9047022665601']);
+    expect(q('4822', { period: 'yesterday' })).toEqual(['6046809238177']);
+  });
+
+  it('comes back to the chosen dates when the search is cleared', () => {
+    expect(applyFilters(S, f({ q: '', period: 'today' }), NOW)).toHaveLength(1);
+  });
+
+  it('finds a reference by its last 4 or 6 digits, and ranks endings first', () => {
+    expect(q('4311')).toEqual(['7046654574311']);
+    expect(q('665601')).toEqual(['9047022665601']);
+    expect(q('046')).toEqual(['7046654574311', '0046809244410', '6046809238177']); // inside all three, none ends with it: newest first
+    expect(q('4410')).toEqual(['0046809244410']);
+  });
+
+  it('finds a reference typed with spaces', () => {
+    expect(q('9047 0226 65601')).toEqual(['9047022665601']);
+  });
+
+  it('finds amounts typed with or without the peso sign and commas', () => {
+    for (const t of ['3500', '3,500', '₱3,500', '3500.00', '₱ 3,500.00']) expect(q(t, { period: 'all' }).sort()).toEqual(['6046809238177', '9047022665601']);
+    expect(q('35')[0]).toBe('0046809244410'); // exact 35 first, then 3500s
+  });
+
+  it('finds names by part, any case', () => {
+    expect(q('mar').sort()).toEqual(['0046809244410', '9047022665601']);
+    expect(q('MARIA')).toEqual(['9047022665601']);
+    expect(q('no••')).toEqual(['7046654574311']);
+  });
+
+  it('finds a phone number by part, including masked ones', () => {
+    expect(q('1234501')).toEqual(['9047022665601']);
+    expect(q('0917 123')).toEqual(['9047022665601']);
+    expect(q('●●4822')).toEqual(['6046809238177']);
+  });
+
+  it('finds who saved it', () => {
+    expect(q('ben')).toEqual(['6046809238177']);
+    expect(q('rodel')).toEqual(['7046654574311']);
+  });
+
+  it('still applies the amount and staff choices', () => {
+    expect(q('mar', { staff: 'Ana' }).sort()).toEqual(['0046809244410', '9047022665601']);
+    expect(q('3500', { amount: 'u1k' })).toEqual([]);
+  });
+
+  it('says which field matched', () => {
+    expect(matchRecord(S[0], '4311')).toBe('ref');
+    expect(matchRecord(S[0], '7988')).toBe('number');
+    expect(matchRecord(S[0], '150')).toBe('amount');
+    expect(matchRecord(S[0], 'no')).toBe('name');
+    expect(matchRecord(S[0], 'rod')).toBe('staff');
+    expect(matchRecord(S[0], 'zzz')).toBeNull();
+  });
+
+  it('marks the matching text', () => {
+    expect(highlight('MARIA S.', 'ria')).toEqual([{ t: 'MA', hit: false }, { t: 'RIA', hit: true }, { t: ' S.', hit: false }]);
+    expect(highlight('9047022665601', '5601')).toEqual([{ t: '904702266', hit: false }, { t: '5601', hit: true }]);
+    expect(highlight('abc', '')).toEqual([{ t: 'abc', hit: false }]);
+  });
+});
+
+describe('the store\'s own name and number', () => {
+  const mk = (i: number, name: string, number: string) => rec(String(1000000000000 + i), { name, number, savedAt: at(11, 23 - (i % 20)) });
+  const many = [
+    ...Array.from({ length: 10 }, (_, i) => mk(i, 'AUNT A.', '09999999999')),
+    ...Array.from({ length: 10 }, (_, i) => mk(20 + i, `CUST ${i}`, `0917000000${i}`)),
+  ];
+
+  it('learns a name and number that repeat on many recent records', () => {
+    const own = detectOwn(many);
+    expect(own.names).toEqual(['AUNT A.']);
+    expect(own.numbers).toEqual(['09999999999']);
+  });
+
+  it('learns nothing from too few records, or when nothing repeats', () => {
+    expect(detectOwn(many.slice(0, 4))).toEqual({ names: [], numbers: [] });
+    expect(detectOwn(many.slice(10))).toEqual({ names: [], numbers: [] });
+  });
+
+  it('does not flag a regular customer who is a small share of the records', () => {
+    const list = [...Array.from({ length: 3 }, (_, i) => mk(i, 'REGULAR R.', '09170000001')), ...Array.from({ length: 17 }, (_, i) => mk(50 + i, `X ${i}`, `0918000000${i}`))];
+    expect(detectOwn(list)).toEqual({ names: [], numbers: [] });
+  });
+
+  it('blanks them on a new receipt and keeps other values', () => {
+    const own = { names: ['AUNT A.'], numbers: ['09999999999'] };
+    expect(withoutOwn('aunt  a.', '0999 999 9999', own)).toEqual({ name: '', number: '' });
+    expect(withoutOwn('MARIA S.', '09171234501', own)).toEqual({ name: 'MARIA S.', number: '09171234501' });
+  });
+
+  it('keeps what it learned after those records age out', () => {
+    const known = mergeOwn({ names: [], numbers: [] }, detectOwn(many));
+    expect(mergeOwn(known, { names: [], numbers: [] })).toBe(known);
+    expect(known.names).toEqual(['AUNT A.']);
+  });
+});

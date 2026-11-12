@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { api } from '../data';
 import { shareCsv, sharePdf } from '../lib/export';
 import { dateTime, peso, peso2 } from '../lib/format';
@@ -6,6 +6,7 @@ import { activeFilterCount, applyFilters, periodLabel, staffNames, summarize } f
 import { DEFAULT_FILTERS, type AmountBand, type Filters, type Period } from '../lib/types';
 import { sendNtfy } from '../native/alerts';
 import { Icon } from './icons';
+import { PhotoViewer } from './PhotoViewer';
 import { NavBar, OptionSheet, RecRow, Sheet, TopBar } from './components';
 import { useApp } from './context';
 import { useWide } from './useWide';
@@ -35,9 +36,11 @@ export function Records({ initialPeriod }: { initialPeriod?: Period }) {
   const [showWho, setShowWho] = useState(false);
   const [limit, setLimit] = useState(100);
 
-  const shown = useMemo(() => applyFilters(records, f), [records, f]);
+  const q = useDeferredValue(f.q.trim());
+  const searching = q.length > 0;
+  const shown = useMemo(() => applyFilters(records, { ...f, q }), [records, f.period, f.from, f.to, f.amount, f.staff, q]);
   const sum = useMemo(() => summarize(shown), [shown]);
-  const label = periodLabel(f);
+  const label = searching ? 'Search results' : periodLabel(f);
   const maxN = Math.max(1, ...sum.people.map((p) => p.n));
   const sel = wide ? (shown.find((r) => r.id === selected) ?? shown[0] ?? null) : null;
   const filters = activeFilterCount(f);
@@ -60,7 +63,8 @@ export function Records({ initialPeriod }: { initialPeriod?: Period }) {
   const list = (
     <>
       <div className="count">
-        {shown.length} {shown.length === 1 ? 'record' : 'records'}
+        {shown.length} {shown.length === 1 ? 'result' : 'records'}
+        {searching && shown.length > 0 && shown.length !== 1 ? ' · best matches first' : ''}
       </div>
       <div className="list">
         {shown.slice(0, limit).map((r) => (
@@ -68,11 +72,24 @@ export function Records({ initialPeriod }: { initialPeriod?: Period }) {
             key={r.id}
             r={r}
             selected={wide && sel?.id === r.id}
+            q={searching ? q : undefined}
             onClick={() => (wide ? setSelected(r.id) : go({ name: 'detail', id: r.id }))}
           />
         ))}
       </div>
-      {shown.length === 0 && <div className="empty">No records for this choice.</div>}
+      {shown.length === 0 && (
+        <div className="empty">
+          {searching ? (
+            <>
+              No match for “{q}”.
+              <br />
+              Try the last 4 digits of the reference number.
+            </>
+          ) : (
+            'No records for this choice.'
+          )}
+        </div>
+      )}
       {shown.length > limit && (
         <button className="btn btn-ghost" style={{ marginTop: 12 }} onClick={() => setLimit(limit + 100)}>
           Show more
@@ -94,7 +111,12 @@ export function Records({ initialPeriod }: { initialPeriod?: Period }) {
                   Search
                 </label>
                 <Icon name="search" size={20} />
-                <input id="q" type="search" placeholder="Ref, name, number or amount" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} />
+                <input id="q" type="search" inputMode="search" autoComplete="off" placeholder="Last digits of ref, name, number, amount" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} />
+                {f.q && (
+                  <button className="clear" aria-label="Clear search" onClick={() => setF({ ...f, q: '' })}>
+                    <Icon name="close" size={20} />
+                  </button>
+                )}
               </div>
               <button className="filterbtn" aria-label="Filters" onClick={() => setSheet('filters')}>
                 <Icon name="filter" size={22} />
@@ -102,8 +124,13 @@ export function Records({ initialPeriod }: { initialPeriod?: Period }) {
               </button>
             </div>
 
+            {searching && (
+              <div className="searchnote" role="status">
+                <Icon name="search" size={18} /> Searching all dates
+              </div>
+            )}
             <div className="chips">
-              <button className="chip on" aria-haspopup="dialog" onClick={() => setSheet('period')}>
+              <button className={`chip on${searching ? ' dim' : ''}`} aria-haspopup="dialog" onClick={() => setSheet('period')}>
                 {label} <Icon name="down" size={14} />
               </button>
               {f.amount !== 'any' && (
@@ -278,7 +305,20 @@ export function Records({ initialPeriod }: { initialPeriod?: Period }) {
 export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: boolean; onDeleted?: () => void }) {
   const { user, toast } = useApp();
   const [sure, setSure] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(r.thumb ?? null);
+  const [zoom, setZoom] = useState(false);
   const mine = r.byUid === user.uid;
+
+  // The sharper photo is kept apart from the record. Load it when the record is opened.
+  useEffect(() => {
+    let on = true;
+    setPhoto(r.thumb ?? null);
+    setSure(false);
+    void api.getPhoto(r.id).then((p) => on && p && setPhoto(p));
+    return () => {
+      on = false;
+    };
+  }, [r.id, r.thumb]);
 
   const body = (
     <>
@@ -313,7 +353,17 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
           </b>
         </div>
       </div>
-      {r.thumb && <img className="photo" src={r.thumb} alt="Small copy of the receipt photo" />}
+      {photo && (
+        <>
+          <button className="photobtn" aria-label="Enlarge the receipt photo" onClick={() => setZoom(true)}>
+            <img src={photo} alt="Receipt photo" />
+            <span>
+              <Icon name="search" size={14} color="#fff" /> Tap to enlarge
+            </span>
+          </button>
+          {zoom && <PhotoViewer src={photo} onClose={() => setZoom(false)} />}
+        </>
+      )}
       <div className="muted small" style={{ textAlign: 'center' }}>
         Deleted automatically after 1 year.
       </div>

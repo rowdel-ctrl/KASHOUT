@@ -82,3 +82,27 @@ export async function makeThumb(webPath: string, maxWidth = 240): Promise<string
     return undefined;
   }
 }
+
+/** A sharper copy (about 600 pixels wide, under 150 KB) that is saved with the record. */
+export async function makePhoto(webPath: string, maxWidth = 640): Promise<string | undefined> {
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = () => rej(new Error('image'));
+      i.src = webPath;
+    });
+    const scale = Math.min(1, maxWidth / img.width);
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * scale);
+    c.height = Math.round(img.height * scale);
+    c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
+    for (const q of [0.62, 0.5, 0.4, 0.3]) {
+      const url = c.toDataURL('image/jpeg', q);
+      if (url.length <= 150_000) return url;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}

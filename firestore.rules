@@ -46,6 +46,23 @@ service cloud.firestore {
             || resource.data.savedAt < request.time.toMillis() - 31536000000);
     }
 
+    // The sharper receipt photo, one per record (same id as the record). Kept apart from the
+    // record so the records list stays small and fast.
+    match /photos/{id} {
+      allow read: if allowed();
+      allow create: if allowed()
+        && request.resource.data.keys().hasOnly(['data', 'byUid', 'savedAt'])
+        && request.resource.data.byUid == request.auth.uid
+        && request.resource.data.savedAt is number
+        && request.resource.data.data is string
+        && request.resource.data.data.size() <= 200000;
+      allow update: if false;
+      allow delete: if allowed()
+        && (resource == null
+            || resource.data.byUid == request.auth.uid
+            || resource.data.savedAt < request.time.toMillis() - 31536000000);
+    }
+
     // Shared app settings: the fee table, and the alert topic.
     match /shared/{doc} {
       allow read: if allowed();
