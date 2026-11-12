@@ -151,6 +151,11 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
       <main className="page wide has-nav">
         <div className="rhead">
           <h1 className="h1">{t('Records')}</h1>
+          <div className="rbtns">
+          <button className="insbtn" onClick={() => go({ name: 'insights' })}>
+            <Icon name="chart" size={20} />
+            {t('Insights')}
+          </button>
           <button
             className="round tint"
             aria-label={t('Download records')}
@@ -161,6 +166,7 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
           >
             <Icon name="download" size={22} />
           </button>
+          </div>
         </div>
 
         <div className={wide ? 'split' : undefined}>

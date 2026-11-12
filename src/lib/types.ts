@@ -172,5 +172,6 @@ export type Route =
   | { name: 'saved' }
   | { name: 'edit'; id: string }
   | { name: 'history'; id: string }
+  | { name: 'insights' }
   | { name: 'settings' }
   | { name: 'fees' };

@@ -8,6 +8,7 @@ import { Logo } from './Logo';
 import { translate, type T } from '../lib/i18n';
 import { AppProvider, useApp } from './context';
 import { Home } from './Home';
+import { Insights } from './Insights';
 import { Detail, Records } from './Records';
 import { Edit, History } from './Edit';
 import { Review } from './Review';
@@ -119,6 +120,7 @@ function Screen({ route }: { route: ReturnType<typeof useApp>['route'] }) {
     case 'saved': return <Saved />;
     case 'edit': return <Edit id={route.id} />;
     case 'history': return <History id={route.id} />;
+    case 'insights': return <Insights />;
     case 'settings': return <SettingsScreen />;
     case 'fees': return <FeeTable />;
   }
