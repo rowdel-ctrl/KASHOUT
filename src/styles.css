@@ -432,12 +432,6 @@ mark { background: var(--warn-bg); color: inherit; border-radius: 4px; padding: 
 .rtabs b { min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px; background: var(--amber); color: #1D1B16; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
 .daygroup { margin-top: 12px; }
 .dayhead { display: flex; justify-content: space-between; align-items: baseline; margin: 0 6px 8px; font-size: 13px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
-.tiles { display: flex; gap: 10px; margin-top: 4px; }
-.tiles > div { flex: 1; padding: 10px 12px; border-radius: 16px; background: var(--bg); }
-.tiles > div.p { background: var(--warn-bg); color: var(--warn-text); }
-.tiles small { display: block; font-size: 13px; font-weight: 700; color: var(--muted); }
-.tiles .p small { color: var(--warn-text); }
-.tiles b { font-size: 22px; font-weight: 800; }
 
 /* Rows must never let the amount run over the reference number, even at the biggest text size */
 .rec .mid { min-width: 0; }
@@ -458,9 +452,6 @@ mark { background: var(--warn-bg); color: inherit; border-radius: 4px; padding: 
 .rtabs button { padding: 0 8px; gap: 6px; font-size: 14.5px; flex: 0 0 auto; }
 .rtabs b { min-width: 20px; height: 20px; padding: 0 6px; font-size: 12px; }
 @media (max-width: 380px) { .rtabs { justify-content: space-between; } .rtabs button { padding: 0 5px; } }
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); }
-.tiles > div { min-width: 0; }
-.tiles b { display: block; overflow-wrap: anywhere; }
 
 /* Tabs: the count sits on the corner of its label, so three tabs fit even at the largest text size */
 .rtabs button { position: relative; }
@@ -599,3 +590,29 @@ h1, h2, h3, .h1, .topbar h1, .sheet h2, .stat b, .rec .ref, .rec .amt, .bigref, 
 .fieldscard .field { margin-top: 14px; }
 .fieldscard .box { min-height: 52px; border-radius: 14px; font-size: 16px; }
 .fieldscard .box.big { font-size: 22px; min-height: 56px; }
+
+/* ---------- redesign: Records ---------- */
+.rsum { display: flex; align-items: center; gap: 16px; margin-top: 12px; background: var(--card); border-radius: 22px; padding: 14px 18px; box-shadow: var(--shadow); }
+.rsum > div { flex: 1; min-width: 0; }
+.rsum > div:first-child { flex: 1.3; }
+.rsum small { display: block; font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.rsum b { display: block; font-family: var(--head); font-size: 22px; font-weight: 800; white-space: nowrap; }
+.rsum b.t { font-size: 26px; color: var(--green); }
+.filterbtn.active { background: var(--green); color: var(--on-green); }
+.hscroll { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 12px -20px 0; padding: 0 20px 2px; }
+.hscroll::-webkit-scrollbar { display: none; }
+.hscroll .chip { flex: none; height: 36px; font-size: 14px; font-weight: 600; padding: 0 14px; white-space: nowrap; }
+.sheet .hscroll { margin: 0 -20px; }
+.seg3 { display: flex; gap: 4px; background: #F1ECE1; border-radius: 14px; padding: 4px; }
+.seg3 button { flex: 1; height: 42px; border: 0; border-radius: 11px; background: none; font-size: 14px; font-weight: 600; color: var(--muted); padding: 0 4px; }
+.seg3 button.on { background: #fff; color: var(--green); box-shadow: 0 1px 5px rgba(60, 40, 10, .14); }
+.sheet .lab { margin: 16px 4px 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.pdfsum { display: flex; align-items: center; gap: 14px; background: var(--bg); border-radius: 18px; padding: 14px 16px; margin-bottom: 4px; }
+.pdfsum > div:first-child { flex: 1; }
+.pdfsum small { display: block; font-size: 13px; font-weight: 500; color: var(--muted); }
+.pdfsum > div > b { font-family: var(--head); font-size: 28px; font-weight: 800; line-height: 1.15; }
+.pdfsum .split2 { text-align: right; font-size: 13px; font-weight: 500; color: var(--muted); line-height: 1.6; }
+.pdfsum .split2 b { font-weight: 700; }
+.dayhead { text-transform: none; letter-spacing: 0; font-size: 13.5px; font-weight: 600; }
+.pdfsum .split2 span { display: block; }
+.sheet .sec { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; }

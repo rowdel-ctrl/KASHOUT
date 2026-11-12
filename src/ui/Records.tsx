@@ -1,10 +1,10 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { api } from '../data';
-import { shareCsv, sharePdf } from '../lib/export';
-import { dateTime, formatRef, peso, peso2, waitText } from '../lib/format';
+import { sharePdf } from '../lib/export';
+import { dateTime, formatRef, peso, peso2, shortDate, waitText } from '../lib/format';
 import { LATE_MS, activeFilterCount, applyFilters, dayLabel, groupByDay, isPending, periodLabel, staffNames, summarize, whenOf } from '../lib/records';
+import { WALLETS, sourceOf, walletColor } from '../lib/wallets';
 import { DEFAULT_FILTERS, type AmountBand, type Filters, type Period, type StatusFilter } from '../lib/types';
-import { sendNtfy } from '../native/alerts';
 import { Icon } from './icons';
 import { PhotoViewer } from './PhotoViewer';
 import { HoldButton, NavBar, OptionSheet, RecRow, Sheet, TopBar } from './components';
@@ -16,8 +16,8 @@ const PERIODS: { value: Period; label: string }[] = [
   { value: 'today', label: 'Today' },
   { value: 'yesterday', label: 'Yesterday' },
   { value: 'week', label: 'Last 7 days' },
+  { value: 'month', label: 'Last 30 days' },
   { value: 'all', label: 'All time' },
-  { value: 'custom', label: 'Custom range' },
 ];
 
 const BANDS: { value: AmountBand; label: string }[] = [
@@ -27,42 +27,70 @@ const BANDS: { value: AmountBand; label: string }[] = [
   { value: 'o5k', label: 'Over ₱5,000' },
 ];
 
+/** Wallets to choose from: the usual ones, plus any other source found in the records. */
+function walletOptions(records: CashRecord[]): string[] {
+  const base = WALLETS.map((w) => w.name);
+  const extra = [...new Set(records.map(sourceOf))].filter((n) => !base.includes(n));
+  return [...base.slice(0, -1), ...extra, base[base.length - 1]];
+}
+
+/** The date fields of a custom range. */
+function DateFields({ from, to, onChange }: { from: string; to: string; onChange: (v: { from: string; to: string }) => void }) {
+  const { t } = useApp();
+  return (
+    <>
+      <div className="two">
+        <div className="field" style={{ marginTop: 0 }}>
+          <label htmlFor="from">{t('From')}</label>
+          <input id="from" type="date" className="box" value={from} max={to || undefined} onChange={(e) => onChange({ from: e.target.value, to })} />
+        </div>
+        <div className="field" style={{ marginTop: 0 }}>
+          <label htmlFor="to">{t('To')}</label>
+          <input id="to" type="date" className="box" value={to} min={from || undefined} onChange={(e) => onChange({ from, to: e.target.value })} />
+        </div>
+      </div>
+      <div className="note" style={{ color: 'var(--muted)', fontWeight: 500 }}>{t('A day starts at 2:00 AM.')}</div>
+    </>
+  );
+}
+
 export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Period; initialStatus?: StatusFilter }) {
-  const { records, today, go, alertTopic, toast, markPaid, t, settings } = useApp();
+  const { records, today, go, toast, t, settings } = useApp();
   const tl = settings.lang === 'tl';
   const wide = useWide();
   const [f, setF] = useState<Filters>({ ...DEFAULT_FILTERS, period: initialPeriod ?? 'today', status: initialStatus ?? 'all' });
-  const [sheet, setSheet] = useState<'period' | 'filters' | 'closing' | null>(null);
+  const [sheet, setSheet] = useState<'filters' | 'dates' | 'pdf' | null>(null);
+  // The PDF has its own choices, so what is in the list does not have to match.
+  const [pdf, setPdf] = useState<Filters>(DEFAULT_FILTERS);
   const [selected, setSelected] = useState<string | null>(null);
   const [limit, setLimit] = useState(100);
 
   const q = useDeferredValue(f.q.trim());
   const searching = q.length > 0;
-  const shown = useMemo(() => applyFilters(records, { ...f, q }), [records, today, f.period, f.from, f.to, f.amount, f.staff, f.status, q]);
+  const shown = useMemo(() => applyFilters(records, { ...f, q }), [records, today, f.period, f.from, f.to, f.amount, f.staff, f.status, f.wallet, q]);
   const pendingAll = useMemo(() => records.filter(isPending), [records]);
   const sum = useMemo(() => summarize(shown), [shown]);
-  const labelEn = searching ? 'Search results' : periodLabel(f);
-  const label = t(labelEn);
+  const label = t(searching ? 'Search results' : periodLabel(f));
   const pendingView = f.status === 'pending';
   // Grouped by day, except search results, which are ordered by how well they match.
   const groups = useMemo(() => (searching ? [] : groupByDay(shown.slice(0, limit), Date.now(), pendingView)), [shown, today, limit, searching, pendingView]);
-  const maxN = Math.max(1, ...sum.people.map((p) => p.n));
   const sel = wide ? (shown.find((r) => r.id === selected) ?? shown[0] ?? null) : null;
   const filters = activeFilterCount(f);
+  const wallets = useMemo(() => walletOptions(records), [records]);
+  const staff = useMemo(() => staffNames(records), [records]);
 
-  async function run(fn: () => Promise<unknown>) {
+  const pdfList = useMemo(() => applyFilters(records, { ...pdf, q: '' }), [records, today, pdf]);
+  const pdfSum = useMemo(() => summarize(pdfList), [pdfList]);
+  const pdfAll = pdfSum.total + pdfSum.pendingTotal;
+
+  async function makePdf() {
     try {
-      await fn();
+      await sharePdf(pdfList, pdf.period, `Cash-outs · ${periodLabel(pdf)}`);
+      setSheet(null);
     } catch (e) {
       const m = String((e as Error)?.message ?? e).toLowerCase();
-      if (!m.includes('cancel') && !m.includes('abort')) toast(t('Could not export. Please try again.'), true);
+      if (!m.includes('cancel') && !m.includes('abort')) toast(t('Could not make the PDF. Please try again.'), true);
     }
-  }
-
-  async function sendSummary() {
-    if (!alertTopic) return toast(t('Alerts are not ready yet. Check your internet.'), true);
-    const ok = await sendNtfy(alertTopic, `Closing ${labelEn}: ${sum.count} cash-outs, ${peso(sum.total)}`);
-    toast(ok ? t('Summary sent') : t('Could not send. Check your internet.'), !ok);
   }
 
   const rowFor = (r: CashRecord) => (
@@ -84,25 +112,21 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
           <section key={g.key} className="daygroup" aria-label={t(dayLabel(g))}>
             <div className="dayhead">
               <span>{t(dayLabel(g))}</span>
-              <span>
-                {peso(g.total)} · {g.count}
-              </span>
+              <span>{peso(g.total)}</span>
             </div>
             <div className="list">{g.records.map(rowFor)}</div>
           </section>
         ))
       )}
       {shown.length === 0 && (
-        <div className="empty">
-          {searching ? (
-            <>
-              {t('No match for “{q}”.', { q })}
-              <br />
-              {t('Try the last 4 digits of the reference number.')}
-            </>
-          ) : (
-            t('No records for this choice.')
-          )}
+        <div className="emptybox">
+          <div className="art">
+            <Icon name="search" size={54} />
+          </div>
+          <b>{t('No records found')}</b>
+          <span>
+            {searching ? `${t('No match for “{q}”.', { q })} ${t('Try the last 4 digits of the reference number.')}` : t('No records for this choice.')}
+          </span>
         </div>
       )}
       {shown.length > limit && (
@@ -119,19 +143,39 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
       {badge ? <b>{badge}</b> : null}
     </button>
   );
+  const pickedRange = f.period === 'custom' && (f.from || f.to);
+  const rangeLabel = f.from && f.to ? (f.from === f.to ? shortDate(new Date(`${f.from}T12:00:00`).getTime()) : `${shortDate(new Date(`${f.from}T12:00:00`).getTime())} – ${shortDate(new Date(`${f.to}T12:00:00`).getTime())}`) : t('Pick dates');
 
   return (
     <>
       <main className="page wide has-nav">
         <div className="rhead">
           <h1 className="h1">{t('Records')}</h1>
-          <button className="round tint" aria-label={t('Closing and export')} onClick={() => setSheet('closing')}>
+          <button
+            className="round tint"
+            aria-label={t('Download records')}
+            onClick={() => {
+              setPdf({ ...DEFAULT_FILTERS, period: f.period === 'custom' && !(f.from || f.to) ? 'month' : f.period, from: f.from, to: f.to, status: f.status, wallet: f.wallet, staff: f.staff });
+              setSheet('pdf');
+            }}
+          >
             <Icon name="download" size={22} />
           </button>
         </div>
 
         <div className={wide ? 'split' : undefined}>
           <div className="side">
+            <section className="rsum" aria-label={t('Summary')}>
+              <div>
+                <small>{t('Cash-out')}</small>
+                <b className="t">{peso(pendingView ? sum.pendingTotal : sum.total)}</b>
+              </div>
+              <div>
+                <small>{t('Charge')}</small>
+                <b>{peso(sum.fees)}</b>
+              </div>
+            </section>
+
             <div className="searchbar">
               <label htmlFor="q" className="sr">
                 {t('Search')}
@@ -143,7 +187,7 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
                   <Icon name="close" size={20} />
                 </button>
               )}
-              <button className="filterbtn" aria-label={t('Filters')} onClick={() => setSheet('filters')}>
+              <button className={`filterbtn${filters > 0 ? ' active' : ''}`} aria-label={t('Filters')} onClick={() => setSheet('filters')}>
                 <Icon name="filter" size={20} />
                 {filters > 0 && <em>{filters}</em>}
               </button>
@@ -156,60 +200,22 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
               </div>
             )}
 
-            {pendingView ? (
-              <section className="waitcard" aria-label={t('Pending')}>
-                <small>{t('Pending')}</small>
-                <b>{peso2(sum.pendingTotal)}</b>
-                <span>
-                  {t('{n} pending', { n: sum.pendingCount })}
-                  {sum.oldestPending != null && ` · ${t('oldest waiting {time}', { time: waitText(Date.now() - sum.oldestPending, tl) })}`}
-                </span>
-              </section>
-            ) : (
-              <section className="summary" aria-label={t('Closing')}>
-                <small>
-                  {t('Paid')} · {label}
-                </small>
-                <div className="line">
-                  <b className="t">{peso(sum.total)}</b>
-                  <span className="pills">
-                    <i>{sum.count} {sum.count === 1 ? t('cash-out') : t('cash-outs')}</i>
-                    <i>
-                      {t('Charge')} {peso(sum.fees)}
-                    </i>
-                  </span>
-                </div>
-                {sum.pendingCount > 0 && (
-                  <button className="pendstrip" onClick={() => setF({ ...f, status: 'pending' })}>
-                    <Icon name="clock" size={20} />
-                    <span>
-                      {t('{n} pending', { n: sum.pendingCount })} · {peso(sum.pendingTotal)}
-                    </span>
-                    <Icon name="right" size={18} />
-                  </button>
-                )}
-              </section>
-            )}
-
             <div className="status3 rtabs" role="group" aria-label={t('Status')}>
               {tab('all', t('All'))}
               {tab('pending', t('Pending'), pendingAll.length)}
               {tab('paid', t('Paid'))}
             </div>
-            <div className="chips">
-              <button className={`chip on${searching || pendingView ? ' dim' : ''}`} aria-haspopup="dialog" onClick={() => setSheet('period')}>
-                {label} <Icon name="down" size={16} />
+
+            <div className="hscroll" role="group" aria-label={t('Dates')}>
+              {PERIODS.map((p) => (
+                <button key={p.value} className={`chip${f.period === p.value && !searching && !pendingView ? ' on' : ''}${searching || pendingView ? ' dim' : ''}`} aria-pressed={f.period === p.value} onClick={() => setF({ ...f, period: p.value })}>
+                  {t(p.label)}
+                </button>
+              ))}
+              <button className={`chip${pickedRange && !searching && !pendingView ? ' on' : ''}${searching || pendingView ? ' dim' : ''}`} aria-haspopup="dialog" onClick={() => setSheet('dates')}>
+                <Icon name="calendar" size={16} />
+                {pickedRange ? rangeLabel : t('Pick dates')}
               </button>
-              {f.amount !== 'any' && (
-                <button className="chip" onClick={() => setF({ ...f, amount: 'any' })} aria-label={t('Clear amount filter')}>
-                  {t(BANDS.find((b) => b.value === f.amount)!.label)} <Icon name="close" size={16} />
-                </button>
-              )}
-              {f.staff !== 'all' && (
-                <button className="chip" onClick={() => setF({ ...f, staff: 'all' })} aria-label={t('Clear staff filter')}>
-                  {f.staff} <Icon name="close" size={16} />
-                </button>
-              )}
             </div>
 
             {list}
@@ -224,47 +230,34 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
       </main>
       <NavBar active="records" />
 
-      {sheet === 'period' && (
-        <OptionSheet
-          title={t('Show records from')}
-          options={PERIODS.map((o) => ({ ...o, label: t(o.label) }))}
-          value={f.period}
-          onPick={(v) => {
-            setF({ ...f, period: v });
-            if (v === 'custom') setSheet('filters');
-          }}
-          onClose={() => setSheet((s) => (s === 'period' ? null : s))}
-        />
+      {sheet === 'dates' && (
+        <Sheet title={t('Pick dates')} onClose={() => setSheet(null)}>
+          <DateFields from={f.from} to={f.to} onChange={(v) => setF({ ...f, period: 'custom', from: v.from, to: v.to })} />
+          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={() => setSheet(null)}>
+            {t('Done')}
+          </button>
+        </Sheet>
       )}
 
       {sheet === 'filters' && (
         <Sheet title={t('Filters')} onClose={() => setSheet(null)}>
           <div className="sec" style={{ marginTop: 0 }}>
-            {t('Dates')}
+            {t('Where from')}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }} role="radiogroup" aria-label={t('Dates')}>
-            {PERIODS.map((p) => (
-              <button key={p.value} role="radio" aria-checked={f.period === p.value} className={`opt${f.period === p.value ? ' on' : ''}`} onClick={() => setF({ ...f, period: p.value })}>
-                {t(p.label)}
-                {f.period === p.value && <Icon name="check" size={22} />}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }} role="radiogroup" aria-label={t('Where from')}>
+            {['all', ...wallets].map((n) => (
+              <button key={n} role="radio" aria-checked={f.wallet === n} className={`opt${f.wallet === n ? ' on' : ''}`} onClick={() => setF({ ...f, wallet: n })}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {n !== 'all' && <i className="dot" style={{ background: walletColor(n) }} />}
+                  {n === 'all' ? t('All wallets') : n}
+                </span>
+                {f.wallet === n && <Icon name="check" size={22} />}
               </button>
             ))}
           </div>
-          {f.period === 'custom' && (
-            <div className="two">
-              <div className="field">
-                <label htmlFor="from">{t('From')}</label>
-                <input id="from" type="date" className="box" value={f.from} max={f.to || undefined} onChange={(e) => setF({ ...f, from: e.target.value })} />
-              </div>
-              <div className="field">
-                <label htmlFor="to">{t('To')}</label>
-                <input id="to" type="date" className="box" value={f.to} min={f.from || undefined} onChange={(e) => setF({ ...f, to: e.target.value })} />
-              </div>
-            </div>
-          )}
 
           <div className="sec">{t('Amount')}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }} role="radiogroup" aria-label={t('Amount')}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }} role="radiogroup" aria-label={t('Amount')}>
             {BANDS.map((b) => (
               <button key={b.value} role="radio" aria-checked={f.amount === b.value} className={`opt${f.amount === b.value ? ' on' : ''}`} onClick={() => setF({ ...f, amount: b.value })}>
                 {t(b.label)}
@@ -274,8 +267,8 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
           </div>
 
           <div className="sec">{t('Staff')}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }} role="radiogroup" aria-label={t('Staff')}>
-            {['all', ...staffNames(records)].map((n) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }} role="radiogroup" aria-label={t('Staff')}>
+            {['all', ...staff].map((n) => (
               <button key={n} role="radio" aria-checked={f.staff === n} className={`opt${f.staff === n ? ' on' : ''}`} onClick={() => setF({ ...f, staff: n })}>
                 {n === 'all' ? t('Everyone') : n}
                 {f.staff === n && <Icon name="check" size={22} />}
@@ -284,74 +277,92 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
           </div>
 
           <div className="two" style={{ marginTop: 18 }}>
-            <button className="btn btn-ghost" onClick={() => setF({ ...DEFAULT_FILTERS, q: f.q })}>
+            <button className="btn btn-ghost" onClick={() => setF({ ...DEFAULT_FILTERS, period: f.period, from: f.from, to: f.to, status: f.status, q: f.q })}>
               {t('Reset')}
             </button>
-            <button className="btn btn-soft" style={{ height: 54 }} onClick={() => setSheet(null)}>
+            <button className="btn btn-primary" style={{ height: 54, fontSize: 16 }} onClick={() => setSheet(null)}>
               {t('Show {n}', { n: shown.length })}
             </button>
           </div>
         </Sheet>
       )}
 
-      {sheet === 'closing' && (
-        <Sheet title={`${t('Closing')} · ${label}`} onClose={() => setSheet(null)}>
-          <div className="tiles">
+      {sheet === 'pdf' && (
+        <Sheet title={t('Download records')} onClose={() => setSheet(null)}>
+          <div className="pdfsum">
             <div>
-              <small>{t('Paid')}</small>
-              <b>{peso(sum.total)}</b>
+              <small>{t('{n} records', { n: pdfList.length })}</small>
+              <b>{peso(pdfAll)}</b>
             </div>
-            <div>
-              <small>{t('Charge')}</small>
-              <b>{peso2(sum.fees)}</b>
-            </div>
-            <div className="p">
-              <small>{t('Pending')}</small>
-              <b>{peso(sum.pendingTotal)}</b>
-            </div>
-          </div>
-          <div className="sec">{t('Who saved')}</div>
-          {sum.people.map((p) => (
-            <div className="who" key={p.name}>
-              <div>
-                <b>{p.name}</b>
-                <span>
-                  {p.n} · {peso(p.sum)}
-                </span>
-              </div>
-              <span className="track">
-                <i style={{ width: `${(p.n / maxN) * 100}%` }} />
+            <div className="split2">
+              <span>
+                {t('Paid')} <b style={{ color: 'var(--green-text)' }}>{peso(pdfSum.total)}</b>
+              </span>
+              <span>
+                {t('Pending')} <b style={{ color: 'var(--warn-text)' }}>{peso(pdfSum.pendingTotal)}</b>
               </span>
             </div>
-          ))}
-          {sum.people.length === 0 && <div className="muted small">{t('No saves for this choice.')}</div>}
-          <div className="stack" style={{ marginTop: 18 }}>
-            <button className="btn btn-primary" onClick={() => void sendSummary()}>
-              {t('Send the summary')}
-            </button>
-            <div className="two">
-              <button
-                className="btn btn-ghost"
-                disabled={!shown.length}
-                onClick={() => {
-                  setSheet(null);
-                  void run(() => shareCsv(shown, f.period));
-                }}
-              >
-                Excel
-              </button>
-              <button
-                className="btn btn-ghost"
-                disabled={!shown.length}
-                onClick={() => {
-                  setSheet(null);
-                  void run(() => sharePdf(shown, f.period, `Cash-outs · ${labelEn}`));
-                }}
-              >
-                PDF
-              </button>
-            </div>
           </div>
+
+          <div className="lab">{t('Dates')}</div>
+          <div className="seg3" role="group" aria-label={t('Dates')}>
+            {(
+              [
+                ['today', 'Today'],
+                ['week', '7 days'],
+                ['month', '30 days'],
+                ['custom', 'Pick'],
+              ] as [Period, string][]
+            ).map(([v, l]) => (
+              <button key={v} className={pdf.period === v ? 'on' : ''} aria-pressed={pdf.period === v} onClick={() => setPdf({ ...pdf, period: v })}>
+                {t(l)}
+              </button>
+            ))}
+          </div>
+          {pdf.period === 'custom' && (
+            <div style={{ marginTop: 12 }}>
+              <DateFields from={pdf.from} to={pdf.to} onChange={(v) => setPdf({ ...pdf, from: v.from, to: v.to })} />
+            </div>
+          )}
+
+          <div className="lab">{t('Status')}</div>
+          <div className="seg3" role="group" aria-label={t('Status')}>
+            {(
+              [
+                ['all', 'All'],
+                ['pending', 'Pending'],
+                ['paid', 'Paid'],
+              ] as [StatusFilter, string][]
+            ).map(([v, l]) => (
+              <button key={v} className={pdf.status === v ? 'on' : ''} aria-pressed={pdf.status === v} onClick={() => setPdf({ ...pdf, status: v })}>
+                {t(l)}
+              </button>
+            ))}
+          </div>
+
+          <div className="lab">{t('Where from')}</div>
+          <div className="hscroll">
+            {['all', ...wallets].map((n) => (
+              <button key={n} className={`chip${pdf.wallet === n ? ' on' : ''}`} aria-pressed={pdf.wallet === n} onClick={() => setPdf({ ...pdf, wallet: n })}>
+                {n !== 'all' && <i className="dot" style={{ background: walletColor(n) }} />}
+                {n === 'all' ? t('All') : n}
+              </button>
+            ))}
+          </div>
+
+          <div className="lab">{t('Staff')}</div>
+          <div className="hscroll">
+            {['all', ...staff].map((n) => (
+              <button key={n} className={`chip${pdf.staff === n ? ' on' : ''}`} aria-pressed={pdf.staff === n} onClick={() => setPdf({ ...pdf, staff: n })}>
+                {n === 'all' ? t('Everyone') : n}
+              </button>
+            ))}
+          </div>
+
+          <button className="btn btn-primary" style={{ marginTop: 18 }} disabled={pdfList.length === 0} onClick={() => void makePdf()}>
+            <Icon name="download" size={22} />
+            {t('Download PDF')}
+          </button>
         </Sheet>
       )}
     </>

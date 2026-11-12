@@ -121,7 +121,7 @@ export interface Draft {
   dateGuess?: boolean;
 }
 
-export type Period = 'today' | 'yesterday' | 'week' | 'all' | 'custom';
+export type Period = 'today' | 'yesterday' | 'week' | 'month' | 'all' | 'custom';
 export type AmountBand = 'any' | 'u1k' | 'b1k5k' | 'o5k';
 export type StatusFilter = 'all' | 'pending' | 'paid';
 
@@ -135,11 +135,13 @@ export interface Filters {
   staff: string;
   /** Paid, pending, or both. */
   status: StatusFilter;
+  /** Where the money came from, or "all". */
+  wallet: string;
   /** Search text (reference, name, number or amount). */
   q: string;
 }
 
-export const DEFAULT_FILTERS: Filters = { period: 'today', from: '', to: '', amount: 'any', staff: 'all', status: 'all', q: '' };
+export const DEFAULT_FILTERS: Filters = { period: 'today', from: '', to: '', amount: 'any', staff: 'all', status: 'all', wallet: 'all', q: '' };
 
 export type Route =
   | { name: 'home' }

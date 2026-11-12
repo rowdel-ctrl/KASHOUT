@@ -1,5 +1,6 @@
 import { businessDayStart, DAY_CUTOFF_HOUR, dayKey, formatRef, shortDate } from './format';
 import type { AmountBand, CashRecord, Filters, Period } from './types';
+import { sourceOf } from './wallets';
 
 const DAY = 86_400_000;
 
@@ -29,6 +30,7 @@ export function periodRange(f: Pick<Filters, 'period' | 'from' | 'to'>, now: num
     case 'today': return { from: today, to: today + DAY };
     case 'yesterday': return { from: today - DAY, to: today };
     case 'week': return { from: today - 6 * DAY, to: today + DAY };
+    case 'month': return { from: today - 29 * DAY, to: today + DAY };
     case 'custom': {
       const from = f.from ? dateStart(f.from) : null;
       const to = f.to ? dateStart(f.to) + DAY : null;
@@ -86,6 +88,7 @@ export function applyFilters(records: CashRecord[], f: Filters, now: number = Da
   const pick = (r: CashRecord) =>
     inBand(r.amount, f.amount) &&
     (f.staff === 'all' || r.by === f.staff) &&
+    (f.wallet === 'all' || sourceOf(r) === f.wallet) &&
     (f.status === 'all' || (f.status === 'pending') === isPending(r));
 
   if (term) {
@@ -195,6 +198,7 @@ export function periodLabel(f: Filters, now: number = Date.now()): string {
     case 'today': return 'Today';
     case 'yesterday': return 'Yesterday';
     case 'week': return 'Last 7 days';
+    case 'month': return 'Last 30 days';
     case 'all': return 'All time';
     case 'custom': {
       if (f.from && f.to) return `${short(new Date(`${f.from}T00:00:00`).getTime())} – ${short(new Date(`${f.to}T00:00:00`).getTime())}`;
@@ -210,11 +214,11 @@ export function staffNames(records: CashRecord[]): string[] {
 }
 
 export function activeFilterCount(f: Filters): number {
-  return (f.amount !== 'any' ? 1 : 0) + (f.staff !== 'all' ? 1 : 0);
+  return (f.amount !== 'any' ? 1 : 0) + (f.staff !== 'all' ? 1 : 0) + (f.wallet !== 'all' ? 1 : 0);
 }
 
 export function isPeriod(p: string): p is Period {
-  return ['today', 'yesterday', 'week', 'all', 'custom'].includes(p);
+  return ['today', 'yesterday', 'week', 'month', 'all', 'custom'].includes(p);
 }
 
 export { dayKey };

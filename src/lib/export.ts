@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import { isNative } from '../native/platform';
 import { dateTime, peso2, shortDate } from './format';
 import type { CashRecord } from './types';
+import { sourceOf } from './wallets';
 
 function csvCell(v: string | number): string {
   const s = String(v);
@@ -13,12 +14,13 @@ function csvCell(v: string | number): string {
 
 /** Excel opens this directly. The reference is written as ="..." so Excel keeps all 13 digits. */
 export function toCsv(records: CashRecord[]): string {
-  const head = ['Saved', 'Reference', 'Amount', 'Charge', 'Name', 'Number', 'Receipt date', 'Saved by', 'Status', 'Paid by', 'Paid at'];
+  const head = ['Saved', 'Reference', 'Amount', 'Charge', 'From', 'Name', 'Number', 'Receipt date', 'Saved by', 'Status', 'Paid by', 'Paid at'];
   const rows = records.map((r) => [
     dateTime(r.savedAt),
     `="${r.ref}"`,
     r.amount.toFixed(2),
     r.fee.toFixed(2),
+    sourceOf(r),
     r.name,
     r.number ? `="${r.number.replace(/"/g, '')}"` : '',
     r.txAt ? dateTime(r.txAt) : '',
@@ -31,7 +33,8 @@ export function toCsv(records: CashRecord[]): string {
 }
 
 export function buildPdf(records: CashRecord[], title: string): jsPDF {
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  // Landscape, so a long bank reference fits on one line.
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'landscape' });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   const M = 36;
@@ -39,16 +42,13 @@ export function buildPdf(records: CashRecord[], title: string): jsPDF {
   const total = paid.reduce((s, r) => s + r.amount, 0);
   const fees = paid.reduce((s, r) => s + r.fee, 0);
   const waiting = records.length - paid.length;
-  const cols = [
-    { h: 'Saved', x: M, w: 92 },
-    { h: 'Reference', x: M + 92, w: 92 },
-    { h: 'Amount', x: M + 184, w: 62 },
-    { h: 'Charge', x: M + 246, w: 38 },
-    { h: 'Name', x: M + 284, w: 100 },
-    { h: 'Number', x: M + 384, w: 90 },
-    { h: 'By', x: M + 474, w: 38 },
-    { h: 'Status', x: M + 512, w: 40 },
-  ];
+  const widths: [string, number][] = [['Saved', 100], ['Reference', 170], ['Amount', 66], ['Charge', 48], ['From', 64], ['Name', 108], ['Number', 84], ['By', 50], ['Status', 52]];
+  let x = M;
+  const cols = widths.map(([h, w]) => {
+    const c = { h, x, w };
+    x += w;
+    return c;
+  });
   let y = M;
   const header = () => {
     doc.setFont('helvetica', 'bold').setFontSize(9);
@@ -73,7 +73,7 @@ export function buildPdf(records: CashRecord[], title: string): jsPDF {
       header();
       doc.setFontSize(9);
     }
-    const cells = [dateTime(r.savedAt), r.ref, r.amount.toFixed(2), r.fee.toFixed(2), r.name, r.number, r.by, r.status === 'pending' ? 'Pending' : 'Paid'];
+    const cells = [dateTime(r.savedAt), r.ref, r.amount.toFixed(2), r.fee.toFixed(2), sourceOf(r), r.name, r.number, r.by, r.status === 'pending' ? 'Pending' : 'Paid'];
     cells.forEach((t, i) => doc.text(doc.splitTextToSize(t, cols[i].w - 4)[0] ?? '', cols[i].x, y));
     y += 14;
   }
