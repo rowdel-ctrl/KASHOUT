@@ -106,10 +106,10 @@ svg { flex: none; }
 .empty { padding: 28px 12px; text-align: center; font-size: 17px; color: var(--muted); line-height: 1.45; }
 
 /* nav: a floating bar with the Scan button raised in the middle */
-.nav { position: fixed; left: 14px; right: 14px; bottom: calc(14px + var(--bottom)); z-index: 20; height: 70px; max-width: 520px; margin: 0 auto; border-radius: 26px; background: var(--nav-bg); box-shadow: 0 8px 26px rgba(40, 25, 5, .16); display: grid; grid-template-columns: 1fr 86px 1fr; align-items: center; }
+.nav { position: fixed; left: 14px; right: 14px; bottom: calc(14px + var(--bottom)); z-index: 20; height: 70px; max-width: 520px; margin: 0 auto; border-radius: 26px; background: var(--nav-bg); box-shadow: 0 8px 26px rgba(40, 25, 5, .16); display: grid; grid-template-columns: 1fr 100px 1fr; align-items: center; }
 .nav .tab { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; font-weight: 600; color: #8A8273; padding: 8px 0; }
 .nav .tab.on { color: var(--green); }
-.nav .scanbtn { width: 68px; height: 68px; border-radius: 50%; border: 5px solid var(--bg); background: var(--green); color: var(--on-green); margin: -32px auto 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 18px var(--green-shadow); padding: 0; }
+.nav .scanbtn { width: 82px; height: 82px; border-radius: 50%; border: 5px solid var(--bg); background: var(--green); color: var(--on-green); margin: -40px auto 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 18px var(--green-shadow); padding: 0; }
 
 /* home */
 .pill { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border-radius: 999px; background: var(--green-soft); color: var(--green-text); font-size: 14px; font-weight: 800; }
