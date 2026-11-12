@@ -111,14 +111,15 @@ function Hl({ text, q }: { text: string; q?: string }) {
   );
 }
 
-export function RecRow({ r, onClick, fresh, selected, q }: { r: CashRecord; onClick?: () => void; fresh?: boolean; selected?: boolean; q?: string }) {
+export function RecRow({ r, onClick, fresh, selected, q, onMarkPaid }: { r: CashRecord; onClick?: () => void; fresh?: boolean; selected?: boolean; q?: string; onMarkPaid?: () => void }) {
   const green = r.ref.charCodeAt(r.ref.length - 1) % 2 === 0;
   const field = q ? matchRecord(r, q) : null;
   const amountText = peso2(r.amount);
   const pending = isPending(r);
   const waited = Date.now() - r.savedAt;
   const late = pending && waited >= LATE_MS;
-  const inner = (
+  const quick = pending && !!onMarkPaid && !!onClick;
+  const main = (
     <>
       <span className={`av${green ? ' g' : ''}`}>{initials(r.name)}</span>
       <span className="mid">
@@ -136,17 +137,41 @@ export function RecRow({ r, onClick, fresh, selected, q }: { r: CashRecord; onCl
           </div>
         )}
       </span>
-      <span className="right">
-        <div className="amt">{field === 'amount' ? <mark>{amountText}</mark> : amountText}</div>
-        {pending ? (
-          <div className={`tag${late ? ' late' : ''}`}>{late ? `Pending · ${waitText(waited)}` : 'Pending'}</div>
-        ) : (
-          <div className="when">{timeOf(whenOf(r))}</div>
-        )}
-      </span>
+    </>
+  );
+  const right = (
+    <span className="right">
+      <div className="amt">{field === 'amount' ? <mark>{amountText}</mark> : amountText}</div>
+      {pending ? (
+        <div className={`tag${late ? ' late' : ''}`}>{late ? `Pending · ${waitText(waited)}` : 'Pending'}</div>
+      ) : (
+        <div className="when">{timeOf(whenOf(r))}</div>
+      )}
+      {quick && (
+        <button className="markpaid" aria-label={`Mark ${peso2(r.amount)} as paid`} onClick={onMarkPaid}>
+          Mark paid
+        </button>
+      )}
+    </span>
+  );
+  const inner = (
+    <>
+      {main}
+      {right}
     </>
   );
   const cls = `rec${fresh ? ' new' : ''}${selected ? ' sel' : ''}${pending ? ' pending' : ''}${late ? ' late' : ''}`;
+  // A row with its own Mark paid button cannot be one big button, so only the left part is.
+  if (quick) {
+    return (
+      <div className={cls}>
+        <button className="recmain" onClick={onClick} aria-pressed={selected}>
+          {main}
+        </button>
+        {right}
+      </div>
+    );
+  }
   return onClick ? (
     <button className={cls} onClick={onClick} aria-pressed={selected}>
       {inner}

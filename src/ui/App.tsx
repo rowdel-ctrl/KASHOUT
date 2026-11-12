@@ -6,7 +6,9 @@ import { Icon } from './icons';
 import { AppProvider, useApp } from './context';
 import { Home } from './Home';
 import { Detail, Records } from './Records';
+import { Edit, History } from './Edit';
 import { Review } from './Review';
+import { Saved } from './Saved';
 import { Scan } from './Scan';
 import { FeeTable, SettingsScreen } from './Settings';
 
@@ -65,7 +67,8 @@ export default function App() {
             <div className="toasts" aria-live="polite">
               {toasts.map((t) => (
                 <div key={t.id} className={`toast${t.err ? ' err' : ''}`}>
-                  {t.text}
+                  <span>{t.text}</span>
+                  {t.action && <button onClick={t.action.run}>{t.action.label}</button>}
                 </div>
               ))}
             </div>
@@ -83,6 +86,9 @@ function Screen({ route }: { route: ReturnType<typeof useApp>['route'] }) {
     case 'review': return <Review initial={route.draft} />;
     case 'records': return <Records key={route.status ?? 'all'} initialPeriod={route.period} initialStatus={route.status} />;
     case 'detail': return <Detail id={route.id} />;
+    case 'saved': return <Saved />;
+    case 'edit': return <Edit id={route.id} />;
+    case 'history': return <History id={route.id} />;
     case 'settings': return <SettingsScreen />;
     case 'fees': return <FeeTable />;
   }

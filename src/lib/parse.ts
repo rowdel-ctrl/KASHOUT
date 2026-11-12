@@ -90,7 +90,14 @@ function toMs(y: number, mon: number, d: number, h: number, min: number, ap: str
   return new Date(y, mon, d, hh, min).getTime();
 }
 
-export function extractDateTime(text: string): number | null {
+export function extractDateTime(text: string, now: number = Date.now()): number | null {
+  // Today, 12:16 PM   |   Yesterday, 9:05 AM   (GCash inbox messages print no calendar date)
+  const rel = /\b(today|yesterday)\b[\s,.:;-]*(\d{1,2})\s*[:.]\s*(\d{2})\s*(AM|PM)/i.exec(text);
+  if (rel) {
+    const day = new Date(now);
+    if (rel[1].toLowerCase() === 'yesterday') day.setDate(day.getDate() - 1);
+    return toMs(day.getFullYear(), day.getMonth(), day.getDate(), +rel[2], +rel[3], rel[4]);
+  }
   // Nov 2, 2026 4:39 PM   |   November 08, 2026 1:23 PM
   let m = /([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i.exec(text);
   if (m) {
@@ -175,14 +182,14 @@ export function extractName(text: string, phoneIndex: number, phoneEnd: number =
   return '';
 }
 
-export function parseReceipt(text: string): ParsedReceipt {
+export function parseReceipt(text: string, now: number = Date.now()): ParsedReceipt {
   const { ref, ok } = extractRef(text);
   const phone = extractPhone(text);
   return {
     ref,
     refOk: ok,
     amount: extractAmount(text),
-    txAt: extractDateTime(text),
+    txAt: extractDateTime(text, now),
     name: extractName(text, phone.index, phone.end),
     number: phone.number,
   };

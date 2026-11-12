@@ -28,6 +28,41 @@ service cloud.firestore {
         && (!('status' in d) || d.status in ['paid', 'pending']);
     }
 
+    function isMarkPaid() {
+      return resource.data.get('status', 'paid') == 'pending'
+        && request.resource.data.status == 'paid'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paidBy', 'paidByUid', 'paidAt'])
+        && request.resource.data.paidByUid == request.auth.uid
+        && request.resource.data.paidBy is string
+        && request.resource.data.paidBy.size() <= 60
+        && request.resource.data.paidAt is number;
+    }
+
+    function isUndoPaid() {
+      return resource.data.get('status', 'paid') == 'paid'
+        && resource.data.get('paidByUid', '') == request.auth.uid
+        && resource.data.get('paidAt', 0) > request.time.toMillis() - 120000
+        && request.resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paidBy', 'paidByUid', 'paidAt']);
+    }
+
+    function isOwnerEdit() {
+      let d = request.resource.data;
+      return resource.data.byUid == request.auth.uid
+        && d.diff(resource.data).affectedKeys().hasOnly(['ref', 'amount', 'fee', 'name', 'number', 'txAt', 'history', 'editedAt'])
+        && d.ref is string && d.ref.size() > 0 && d.ref.size() <= 40
+        && d.amount is number && d.amount > 0 && d.amount <= 1000000
+        && d.fee is number && d.fee >= 0 && d.fee <= 100000
+        && d.name is string && d.name.size() <= 80
+        && d.number is string && d.number.size() <= 40
+        && (d.txAt == null || d.txAt is number)
+        && d.editedAt is number
+        && d.history is list
+        && d.history.size() <= 100
+        && d.history.size() == resource.data.get('history', []).size() + 1
+        && d.history[d.history.size() - 1].byUid == request.auth.uid;
+    }
+
     // Nobody can read or change the allowlist from the app. Edit it in the Firebase console.
     match /config/{doc} {
       allow read, write: if false;
@@ -39,16 +74,11 @@ service cloud.firestore {
       // A second create with the same id is an update, which is only allowed for
       // pending -> paid (below), so two phones cannot both save the same reference.
       allow create: if allowed() && validRecord(request.resource.data);
-      // The only change allowed: a pending record becomes paid. Anyone on the list can do it.
-      // Nothing else about the record can change.
-      allow update: if allowed()
-        && resource.data.get('status', 'paid') == 'pending'
-        && request.resource.data.status == 'paid'
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paidBy', 'paidByUid', 'paidAt'])
-        && request.resource.data.paidByUid == request.auth.uid
-        && request.resource.data.paidBy is string
-        && request.resource.data.paidBy.size() <= 60
-        && request.resource.data.paidAt is number;
+      // Three changes are allowed, and nothing else:
+      //  1. a pending record becomes paid (anyone on the list),
+      //  2. the person who marked it paid puts it back to pending, within 2 minutes (Undo),
+      //  3. the person who saved a record edits it, and the change is added to its history.
+      allow update: if allowed() && (isMarkPaid() || isUndoPaid() || isOwnerEdit());
       // Only the person who saved a record can delete it (Undo and Delete).
       // Anyone on the list may delete a record older than one year (automatic cleanup).
       allow delete: if allowed()

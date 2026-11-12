@@ -12,6 +12,7 @@ import {
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -129,6 +130,19 @@ export function createFirebaseApi(cfg: FirebaseSettings): DataApi {
     markPaid(id, by) {
       updateDoc(doc(db, 'records', id), { status: 'paid', paidBy: by.name, paidByUid: by.uid, paidAt: Date.now() }).catch((e: { code?: string }) => {
         const msg = e.code === 'permission-denied' ? 'Could not mark it as paid. The owner needs to publish the new rules in Firebase.' : 'Could not mark it as paid. Please try again.';
+        errCbs.forEach((cb) => cb(msg, ''));
+      });
+    },
+
+    undoPaid(id) {
+      updateDoc(doc(db, 'records', id), { status: 'pending', paidBy: deleteField(), paidByUid: deleteField(), paidAt: deleteField() }).catch(() => {
+        errCbs.forEach((cb) => cb('Could not undo. The record stays paid.', ''));
+      });
+    },
+
+    editRecord(id, fields, history) {
+      updateDoc(doc(db, 'records', id), { ...fields, history, editedAt: Date.now() }).catch((e: { code?: string }) => {
+        const msg = e.code === 'permission-denied' ? 'Could not save the change. The owner needs to publish the new rules in Firebase.' : 'Could not save the change. Please try again.';
         errCbs.forEach((cb) => cb(msg, ''));
       });
     },

@@ -24,6 +24,8 @@ You will end up with: one APK file you install on each phone.
 3. Choose **Production mode** → **Create**.
 
 ### 1.4 Add the security rules
+
+> After an app update, copy `firestore.rules` into Firebase again and tap **Publish**. New features (Edit, Undo for Mark as paid) need the new rules.
 1. In Firestore, open the **Rules** tab.
 2. Delete everything there. Open the file `firestore.rules` from this repository, copy all of it, paste it in.
 3. Click **Publish**.
@@ -144,7 +146,11 @@ Do these once, with fake or test receipts.
 7. **Closing and export.** Open **Records**. The Closing card shows the total for the dates you chose. Tap **Send** for the summary alert, and **Export** for Excel or PDF.
 8. **Dark mode and text size.** Open **Settings** and try **Theme** and **Text size**.
 9. **Pending.** Scan a receipt and tap **Save · Pending**. Home shows an amber **pending** card. Open the record and tap **Mark as paid**. It turns green and shows who paid. On a second phone, check that the alerts say "pending" and then "cashed out".
-10. **Delete.** Open a record you saved and tap **Delete this record** twice. You cannot delete a record someone else saved.
+10. **Auto capture.** Open **Record a cash-out** and hold a receipt still inside the frame. A countdown (2, 1) shows, then **Check and save** opens by itself. Turn it off in Settings > Scanning > **Take photo automatically**. If it never starts, move closer or add light. The round button always works.
+11. **Share.** Open a receipt picture in GCash or the Gallery, tap Share, pick **Kashawt**. **Check and save** opens with the details. Nothing is saved until you tap Save.
+12. **Edit.** Open a record you saved and tap **Edit**. Change the amount, save, then tap **Edited · 1 change** to see the old and new values. You cannot edit a record someone else saved.
+13. **Mark paid.** In **Records > Pending**, tap **Mark paid** on a row. Tap **Undo** in the message within a few seconds to put it back.
+14. **Delete.** Open a record you saved and tap **Delete** twice. You cannot delete a record someone else saved.
 
 You can also test the security rules on a computer: `npm run test:rules` (needs Java).
 

@@ -1,4 +1,5 @@
-import type { AppUser, CashRecord, FeeTier, NewRecord } from '../lib/types';
+import type { EditFields } from '../lib/edit';
+import type { AppUser, CashRecord, EditEntry, FeeTier, NewRecord } from '../lib/types';
 
 export interface SyncState {
   /** Writes made on this phone that have not reached the server yet. */
@@ -29,6 +30,10 @@ export interface DataApi {
   deleteRecord(id: string): void;
   /** Marks a pending record as paid (cash given). Anyone on the list can do it. Not awaited. */
   markPaid(id: string, by: { uid: string; name: string }): void;
+  /** Puts a record back to pending. Only works right after it was marked paid, by the same person. Not awaited. */
+  undoPaid(id: string): void;
+  /** Changes a record. `history` is the whole list, with the new entry last. Only the person who saved it can do this. Not awaited. */
+  editRecord(id: string, fields: EditFields, history: EditEntry[]): void;
   /** Saves the sharper photo for a record, kept apart from the list so the list stays fast. Not awaited. */
   savePhoto(id: string, dataUrl: string): void;
   /** Loads a record's photo when it is opened. Null if there is none. */

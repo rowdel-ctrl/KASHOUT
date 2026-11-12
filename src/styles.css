@@ -444,3 +444,43 @@ mark { background: var(--warn-bg); color: inherit; border-radius: 4px; padding: 
 .waitcard .acts { display: flex; gap: 8px; margin-top: 12px; }
 .waitcard .acts button { flex: 1; height: 44px; border: 0; border-radius: 14px; background: var(--card); color: var(--warn-text); font-size: 15px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .waitcard .acts button:disabled { opacity: .5; }
+
+/* auto capture */
+.viewport.auto .c { border-color: #FFB020; }
+.viewport.auto .guide { border-color: rgba(255, 255, 255, .35); }
+.viewport.auto.ok .c { border-color: #34C759; }
+.viewport.auto.ok .guide { border: 3px solid #34C759; }
+.viewport .status span.wait { background: rgba(255, 176, 32, .22); color: #FFC861; }
+.viewport .status span.ok { background: rgba(52, 199, 89, .22); color: #7CE79A; }
+.viewport .countdown { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; text-shadow: 0 2px 12px rgba(0, 0, 0, .55); }
+.viewport .countdown b { display: block; font-size: 88px; line-height: 1; font-weight: 800; color: #fff; }
+.viewport .countdown span { display: block; margin-top: 6px; font-size: 16px; font-weight: 800; color: #7CE79A; }
+
+/* duplicate banner on Check and save */
+.dupbanner { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; padding: 14px 16px; border-radius: 20px; background: var(--warn-bg); border: 2px solid var(--amber); color: var(--warn-text); animation: fade .2s ease; }
+.dupbanner b { font-size: 17px; font-weight: 800; }
+.dupbanner span { font-size: 15px; font-weight: 700; }
+
+/* Saved screen */
+.saved { display: flex; flex-direction: column; align-items: center; text-align: center; min-height: 100dvh; padding-top: 120px; padding-bottom: calc(24px + var(--bottom)); }
+.saved .okring { width: 110px; height: 110px; border-radius: 50%; background: var(--green); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+.saved .line { margin-top: 6px; font-size: 19px; font-weight: 800; }
+.saved .muted { margin-top: 4px; font-size: 16px; font-weight: 700; }
+
+/* Mark paid on a row */
+.rec .recmain { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 0; border: 0; background: none; text-align: left; color: inherit; }
+.rec .markpaid { margin-top: 6px; min-height: 40px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--green); color: var(--on-green); font-size: 14px; font-weight: 800; white-space: nowrap; }
+.rec .markpaid:active { transform: scale(.96); }
+
+/* Edit and History */
+.editedbadge { display: inline-flex; align-items: center; justify-content: center; gap: 6px; align-self: center; min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--warn-bg); color: var(--warn-text); font-size: 14px; font-weight: 800; }
+.histcard { padding: 14px 16px; }
+.histcard .chg { margin-top: 10px; font-size: 16px; line-height: 1.5; }
+.histcard .chg b { display: block; font-size: 14px; color: var(--muted); }
+.histcard .chg s { color: var(--red); }
+.histcard .chg strong { color: var(--green-text); font-weight: 800; }
+
+/* toast with a button */
+.toast { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.toast button { pointer-events: auto; min-height: 44px; padding: 0 8px; border: 0; background: none; color: #7CE79A; font-size: 17px; font-weight: 800; }
+html[data-theme='dark'] .toast button { color: #17803F; }

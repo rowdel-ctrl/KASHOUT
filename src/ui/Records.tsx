@@ -28,7 +28,7 @@ const BANDS: { value: AmountBand; label: string }[] = [
 ];
 
 export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Period; initialStatus?: StatusFilter }) {
-  const { records, go, alertTopic, toast } = useApp();
+  const { records, go, alertTopic, toast, markPaid } = useApp();
   const wide = useWide();
   const [f, setF] = useState<Filters>({ ...DEFAULT_FILTERS, period: initialPeriod ?? 'today', status: initialStatus ?? 'all' });
   const [sheet, setSheet] = useState<'period' | 'filters' | 'export' | null>(null);
@@ -74,6 +74,7 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
             r={r}
             selected={wide && sel?.id === r.id}
             q={searching ? q : undefined}
+            onMarkPaid={() => markPaid(r)}
             onClick={() => (wide ? setSelected(r.id) : go({ name: 'detail', id: r.id }))}
           />
         ))}
@@ -332,7 +333,7 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
 }
 
 export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: boolean; onDeleted?: () => void }) {
-  const { user, toast, markPaid } = useApp();
+  const { user, toast, markPaid, go } = useApp();
   const pending = isPending(r);
   const waited = (r.paidAt ?? Date.now()) - r.savedAt;
   const [sure, setSure] = useState(false);
@@ -398,6 +399,12 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
           <b style={pending ? { color: 'var(--warn-text)' } : undefined}>{pending ? 'No' : r.paidBy && r.paidAt ? `${r.paidBy} · ${dateTime(r.paidAt)}` : 'Yes'}</b>
         </div>
       </div>
+      {r.history && r.history.length > 0 && (
+        <button className="editedbadge" onClick={() => go({ name: 'history', id: r.id })}>
+          <Icon name="edit" size={16} />
+          Edited · {r.history.length} {r.history.length === 1 ? 'change' : 'changes'} · View history
+        </button>
+      )}
       {pending ? (
         <div className="paidnote" style={{ background: 'var(--warn-bg)', color: 'var(--warn-text)' }}>
           Waiting {waitText(waited)}. {waited >= LATE_MS ? 'This has been waiting a long time.' : 'Mark it Paid when you give the cash.'}
@@ -424,6 +431,12 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
         <button className="btn btn-primary" onClick={() => markPaid(r)}>
           <Icon name="check" size={22} />
           Mark as paid
+        </button>
+      )}
+      {mine && (
+        <button className="btn btn-ghost" onClick={() => go({ name: 'edit', id: r.id })}>
+          <Icon name="edit" size={20} />
+          Edit
         </button>
       )}
       {mine ? (

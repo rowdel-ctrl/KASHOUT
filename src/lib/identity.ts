@@ -46,3 +46,16 @@ export function withoutOwn(name: string, number: string, own: OwnIdentity): { na
     number: number && own.numbers.includes(normNumber(number)) ? '' : number,
   };
 }
+
+/**
+ * The name used the last time this number was saved. Newest record first.
+ * Needs a real number (at least 4 digits) so a short or empty number never matches.
+ */
+export function nameForNumber(records: CashRecord[], number: string): string {
+  const n = normNumber(number);
+  if (n.replace(/\D/g, '').length < 4) return '';
+  for (const r of records) {
+    if (r.name && normNumber(r.number) === n) return r.name;
+  }
+  return '';
+}

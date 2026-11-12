@@ -52,6 +52,18 @@ export function createMemoryApi(): DataApi {
       records = records.map((r) => (r.id === id && r.status === 'pending' ? { ...r, status: 'paid' as const, paidBy: by.name, paidByUid: by.uid, paidAt: Date.now() } : r));
       emit();
     },
+    undoPaid(id) {
+      records = records.map((r) => {
+        if (r.id !== id || r.status === 'pending') return r;
+        const { paidBy: _a, paidByUid: _b, paidAt: _c, ...rest } = r;
+        return { ...rest, status: 'pending' as const };
+      });
+      emit();
+    },
+    editRecord(id, fields, history) {
+      records = records.map((r) => (r.id === id ? { ...r, ...fields, history, editedAt: Date.now() } : r));
+      emit();
+    },
     savePhoto(id, dataUrl) {
       photos.set(id, dataUrl);
     },

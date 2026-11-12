@@ -162,3 +162,28 @@ describe('names and numbers in other layouts', () => {
     expect(r.number).toBe('09171234501');
   });
 });
+
+describe('dates printed as Today or Yesterday', () => {
+  const now = new Date(2026, 10, 12, 12, 40).getTime(); // Nov 12, 2026 12:40 PM
+  const INBOX = `12:40 PM\nInbox\nToday, 12:16 PM\nExpress Send Notification\nYou have received PHP 3000.00 from\nAN***S J** L. +639615460508 w/ MSG: .\nYour new balance is PHP 20140.48. Ref.\nNo. 6047167885112.`;
+
+  it('reads "Today, 12:16 PM" as today at that time, and ignores the phone clock', () => {
+    const r = parseReceipt(INBOX, now);
+    expect(r.txAt).toBe(new Date(2026, 10, 12, 12, 16).getTime());
+    expect(r.ref).toBe('6047167885112');
+    expect(r.amount).toBe(3000);
+  });
+  it('reads Yesterday', () => {
+    expect(parseReceipt('Yesterday, 9:05 AM\nAmount 500.00', now).txAt).toBe(new Date(2026, 10, 11, 9, 5).getTime());
+  });
+  it('copes with OCR spacing and punctuation', () => {
+    expect(parseReceipt('Today,12:16PM', now).txAt).toBe(new Date(2026, 10, 12, 12, 16).getTime());
+    expect(parseReceipt('TODAY 12.16 pm', now).txAt).toBe(new Date(2026, 10, 12, 12, 16).getTime());
+  });
+  it('a lone time (like the phone clock) is not a receipt date', () => {
+    expect(parseReceipt('12:40 PM\nInbox', now).txAt).toBeNull();
+  });
+  it('a full date still wins when there is no Today', () => {
+    expect(parseReceipt('Nov 08, 2026 1:23 PM', now).txAt).toBe(new Date(2026, 10, 8, 13, 23).getTime());
+  });
+});

@@ -8,11 +8,18 @@ Android app for a sari-sari store. Staff record every GCash cash-out by its **13
 - Same reference twice? The app warns and shows who saved it and when.
 - Warm green design with dark mode, adjustable text size, and a two-column layout on tablets.
 - Live camera with a frame guide. A phone camera app is the fallback.
+- **Auto capture:** hold the receipt still and the app takes the photo by itself (switch in Settings). It still opens Check and save, never saves alone.
+- **Share from GCash:** share a receipt picture or text to Kashawt and it opens Check and save.
+- After Save, **Scan next** goes straight back to the camera.
+- Same reference scanned again? The warning shows on Check and save at once, with **Show saved record** (or **Mark as paid** if it is pending).
+- **Mark paid** button on pending rows, with Undo for a few seconds.
+- The name is filled in from an earlier record with the same number.
+- The person who saved a record can **Edit** it. Every change is kept in **History**.
 - Record now, give the cash later: **Save · Pending**, then **Mark as paid**. Pending records turn red after 2 hours. Totals and fees count only paid records.
 - Warnings for old receipts, big amounts and bad reference numbers. Undo for 5 seconds after Save.
 - Fee comes from the store's rate table (pick a tier or type one).
 - Records: search, dates (including a custom range), amount range, staff. The Closing totals sit at the top, with Send, Excel (CSV) and PDF export.
-- Only the person who saved a record can delete it.
+- Only the person who saved a record can edit or delete it.
 - Records older than 1 year are deleted automatically.
 
 ## Set it up

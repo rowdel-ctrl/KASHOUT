@@ -2,7 +2,7 @@
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
-import { deleteDoc, doc, getDoc, getDocs, collection, setDoc, updateDoc, query, limit } from 'firebase/firestore';
+import { deleteDoc, deleteField, doc, getDoc, getDocs, collection, setDoc, updateDoc, query, limit } from 'firebase/firestore';
 
 let env: RulesTestEnvironment;
 
@@ -212,3 +212,81 @@ describe('pending and paid', () => {
   });
 });
 
+
+describe('undo mark as paid', () => {
+  const paidBy = (uid: string, at: number) => ({ status: 'paid', paidBy: 'Ana', paidByUid: uid, paidAt: at });
+  const back = { status: 'pending', paidBy: deleteField(), paidByUid: deleteField(), paidAt: deleteField() };
+
+  it('the person who marked it paid can undo it within 2 minutes', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'records', 'p1'), rec('ben', { savedAt: Date.now(), ...paidBy('ana', Date.now() - 30_000) })));
+    await assertSucceeds(updateDoc(doc(ana(env), 'records', 'p1'), back));
+  });
+
+  it('not after 2 minutes, and not by someone else', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'records', 'late'), rec('ben', { savedAt: Date.now(), ...paidBy('ana', Date.now() - 300_000) }));
+      await setDoc(doc(ctx.firestore(), 'records', 'other'), rec('ana', { savedAt: Date.now(), ...paidBy('ben', Date.now() - 30_000) }));
+    });
+    await assertFails(updateDoc(doc(ana(env), 'records', 'late'), back));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'other'), back));
+  });
+
+  it('undo cannot change anything else', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'records', 'p1'), rec('ben', { savedAt: Date.now(), ...paidBy('ana', Date.now() - 30_000) })));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'p1'), { ...back, amount: 1 }));
+  });
+});
+
+describe('edit a record', () => {
+  const entry = (uid: string) => ({ at: Date.now(), by: 'Ana', byUid: uid, changes: [{ f: 'amount', from: 3500, to: 3000 }] });
+  const mine = (over: Record<string, unknown> = {}) => rec('ana', { savedAt: Date.now(), ...over });
+  const seed = async (over: Record<string, unknown> = {}) =>
+    env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'records', 'mine'), mine(over)));
+
+  it('the person who saved it can change it, and the change is added to the history', async () => {
+    await seed();
+    await assertSucceeds(updateDoc(doc(ana(env), 'records', 'mine'), { amount: 3000, name: 'Ana R.', history: [entry('ana')], editedAt: Date.now() }));
+    await assertSucceeds(updateDoc(doc(ana(env), 'records', 'mine'), { ref: '1111222233334', history: [entry('ana'), entry('ana')], editedAt: Date.now() }));
+  });
+
+  it('someone else cannot edit it', async () => {
+    await seed();
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'records', 'bens'), rec('ben', { savedAt: Date.now() })));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'bens'), { amount: 3000, history: [entry('ana')], editedAt: Date.now() }));
+    await assertFails(updateDoc(doc(stranger(env), 'records', 'mine'), { amount: 3000, history: [entry('eve')], editedAt: Date.now() }));
+  });
+
+  it('a change without a new history entry is refused, and history cannot be rewritten', async () => {
+    await seed({ history: [entry('ana')] });
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { amount: 3000, editedAt: Date.now() }));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { amount: 3000, history: [entry('ana')], editedAt: Date.now() })); // still 1 entry
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { amount: 3000, history: [entry('ana'), entry('ana'), entry('ana')], editedAt: Date.now() })); // 2 new at once
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { amount: 3000, history: [entry('ben'), entry('ben')], editedAt: Date.now() })); // not signed by me
+  });
+
+  it('cannot change who saved it, when, the status, or the paid details', async () => {
+    await seed();
+    const h = { history: [entry('ana')], editedAt: Date.now() };
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { by: 'Ben', ...h }));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { byUid: 'ben', ...h }));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { savedAt: 1, ...h }));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { status: 'pending', ...h }));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { paidBy: 'Ana', ...h }));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { thumb: 'x', ...h }));
+  });
+
+  it('refuses bad values', async () => {
+    await seed();
+    const h = { history: [entry('ana')], editedAt: Date.now() };
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { amount: -1, ...h }));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { amount: '3000', ...h }));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { ref: '', ...h }));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { name: 'x'.repeat(81), ...h }));
+    await assertFails(updateDoc(doc(ana(env), 'records', 'mine'), { fee: -5, ...h }));
+  });
+
+  it('works on a paid record too', async () => {
+    await seed({ status: 'paid' });
+    await assertSucceeds(updateDoc(doc(ana(env), 'records', 'mine'), { fee: 50, history: [entry('ana')], editedAt: Date.now() }));
+  });
+});

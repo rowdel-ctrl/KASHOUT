@@ -62,6 +62,24 @@ export function SettingsScreen() {
           </button>
         </div>
 
+        <div className="sec">Scanning</div>
+        <div className="card flush">
+          <div className="item">
+            <span className="grow">
+              Take photo automatically
+              <small>The camera takes the photo when the receipt is steady. You still tap Save.</small>
+            </span>
+            <Switch on={settings.autoCapture} label="Take photo automatically" onChange={(v) => updateSettings({ autoCapture: v })} />
+          </div>
+          <div className="item">
+            <span className="grow">
+              Save receipt photo
+              <small>A small copy, for checking later</small>
+            </span>
+            <Switch on={settings.savePhoto} label="Save receipt photo" onChange={(v) => updateSettings({ savePhoto: v })} />
+          </div>
+        </div>
+
         <div className="sec">Cash-out rules</div>
         <div className="card flush">
           <button className="item" aria-haspopup="dialog" onClick={() => setSheet('limit')}>
@@ -89,13 +107,6 @@ export function SettingsScreen() {
               View <Icon name="right" size={16} color="var(--muted)" />
             </span>
           </button>
-          <div className="item">
-            <span className="grow">
-              Save receipt photo
-              <small>A small copy, for checking later</small>
-            </span>
-            <Switch on={settings.savePhoto} label="Save receipt photo" onChange={(v) => updateSettings({ savePhoto: v })} />
-          </div>
         </div>
 
         <div className="sec">Alerts</div>

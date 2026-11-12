@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { feeFor, tierLabel } from '../lib/fees';
 import { dateTime, formatRef, fromLocalInput, parseMoney, peso, peso2, toLocalInput } from '../lib/format';
+import { nameForNumber } from '../lib/identity';
 import { reviewWarnings } from '../lib/warnings';
 import { isPending } from '../lib/records';
 import type { CashRecord, Draft } from '../lib/types';
@@ -16,6 +17,9 @@ export function Review({ initial }: { initial: Draft }) {
   const [saveAs, setSaveAs] = useState<'paid' | 'pending'>('paid');
   const [sheet, setSheet] = useState<'fee' | 'customer' | 'read' | null>(null);
   const [viewing, setViewing] = useState(false);
+  // "This is different": the person says the saved record with this reference is another cash-out.
+  const [differs, setDiffers] = useState(false);
+  const nameTouched = useRef(false);
 
   const refDigits = d.ref.replace(/\s+/g, '');
   const refOk = /^\d{13}$/.test(refDigits);
@@ -26,6 +30,15 @@ export function Review({ initial }: { initial: Draft }) {
   const autoFee = feeFor(amount, fees);
   const feeNum = parseMoney(d.fee);
   const photo = d.photoUrl ?? d.thumb;
+  // Same reference as a record that is already saved. Shown at once, before Save.
+  const dupNow = refDigits ? records.find((r) => r.ref === refDigits) : undefined;
+  const showDup = !!dupNow && !differs;
+
+  // Fill in the name from an earlier record with the same number, unless the person typed one.
+  const known = useMemo(() => (d.name ? '' : nameForNumber(records, d.number)), [records, d.name, d.number]);
+  useEffect(() => {
+    if (known && !d.name && !nameTouched.current) setD((p) => (p.name ? p : { ...p, name: known, autoName: true }));
+  }, [known, d.name]);
 
   function setAmount(v: string) {
     setD((p) => {
@@ -41,14 +54,23 @@ export function Review({ initial }: { initial: Draft }) {
   function onSave(status: 'paid' | 'pending') {
     setSaveAs(status);
     const found = records.find((r) => r.ref === refDigits);
-    if (found) setDup(found);
-    else saveDraft({ ...d, ref: refDigits }, false, status);
+    if (found && !differs) setDup(found);
+    else saveDraft({ ...d, ref: refDigits }, differs, status);
   }
 
   return (
     <>
       <main className="page review">
         <TopBar title="Check and save" />
+
+        {showDup && dupNow && (
+          <div className="dupbanner" role="alert">
+            <b>{isPending(dupNow) ? 'Waiting for cash' : 'Already saved. This may be paid twice.'}</b>
+            <span>
+              {isPending(dupNow) ? 'Pending' : 'Paid'} · {peso2(dupNow.amount)} · {dupNow.by} · {dateTime(dupNow.savedAt)}
+            </span>
+          </div>
+        )}
 
         <div className="photo-card">
           {photo ? <img className="thumb" src={d.thumb ?? photo} alt="" /> : <div className="thumb" aria-hidden="true" />}
@@ -104,6 +126,7 @@ export function Review({ initial }: { initial: Draft }) {
             <span>{d.name || d.number ? `${d.name || 'No name'} · ${d.number || 'No number'}` : 'Add name and number'}</span>
             <Icon name="right" size={18} />
           </button>
+          {d.autoName && d.name && <div className="note good">Name filled in from an earlier record. Tap to change.</div>}
         </div>
       </main>
 
@@ -114,17 +137,50 @@ export function Review({ initial }: { initial: Draft }) {
               <b>Please check.</b> {warns.map((w) => w.text).join(' ')}
             </WarnBar>
           )}
-          <button className="btn btn-primary" disabled={!canSave} onClick={() => onSave('paid')}>
-            <Icon name="check" size={22} />
-            Save · Paid
-          </button>
-          <button className="btn btn-pending" disabled={!canSave} onClick={() => onSave('pending')}>
-            <Icon name="clock" size={22} />
-            Save · Pending
-          </button>
-          <div className="muted small" style={{ textAlign: 'center', lineHeight: 1.35 }}>
-            Pending keeps the receipt. Mark it <b>Paid</b> when you give the cash.
-          </div>
+          {showDup && dupNow ? (
+            <>
+              {isPending(dupNow) && (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    // Give the cash now: mark the pending record as paid and go home.
+                    markPaid(dupNow);
+                    tab({ name: 'home' });
+                  }}
+                >
+                  <Icon name="check" size={22} />
+                  Mark as paid
+                </button>
+              )}
+              <button
+                className={isPending(dupNow) ? 'btn btn-ghost' : 'btn btn-primary'}
+                onClick={() => {
+                  // Open the record that already has this reference. Back goes home.
+                  tab({ name: 'home' });
+                  go({ name: 'detail', id: dupNow.id });
+                }}
+              >
+                Show saved record
+              </button>
+              <button className="btn btn-danger" onClick={() => setDiffers(true)}>
+                This is different. Save anyway
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn btn-primary" disabled={!canSave} onClick={() => onSave('paid')}>
+                <Icon name="check" size={22} />
+                Save · Paid
+              </button>
+              <button className="btn btn-pending" disabled={!canSave} onClick={() => onSave('pending')}>
+                <Icon name="clock" size={22} />
+                Save · Pending
+              </button>
+              <div className="muted small" style={{ textAlign: 'center', lineHeight: 1.35 }}>
+                Pending keeps the receipt. Mark it <b>Paid</b> when you give the cash.
+              </div>
+            </>
+          )}
           <button className="btn btn-text" onClick={() => tab({ name: 'home' })}>
             Discard
           </button>
@@ -195,7 +251,15 @@ export function Review({ initial }: { initial: Draft }) {
         <Sheet title="Customer" onClose={() => setSheet(null)}>
           <div className="field" style={{ marginTop: 0 }}>
             <label htmlFor="nm">Name</label>
-            <input id="nm" className="box" value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} />
+            <input
+              id="nm"
+              className="box"
+              value={d.name}
+              onChange={(e) => {
+                nameTouched.current = true;
+                setD({ ...d, name: e.target.value, autoName: false });
+              }}
+            />
           </div>
           <div className="field">
             <label htmlFor="no">Number</label>

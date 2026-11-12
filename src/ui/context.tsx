@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { api } from '../data';
 import { DEFAULT_FEES } from '../lib/fees';
 import { parseMoney, peso } from '../lib/format';
+import { diffFields, fieldsOf, type EditFields } from '../lib/edit';
 import {
   type AppUser, type CashRecord, type Draft, type FeeTier, type NewRecord, type Route, type Settings,
 } from '../lib/types';
@@ -10,10 +11,14 @@ import { sendNtfy } from '../native/alerts';
 import { buzzSaved } from '../native/haptics';
 import { detectOwn, mergeOwn } from '../lib/identity';
 import { isNative } from '../native/platform';
+import { listenShared, type SharedItem } from '../native/share';
+import { draftFromPhoto, draftFromText } from './draft';
 import type { SyncState } from '../data/api';
 
-export interface Toast { id: number; text: string; err?: boolean }
+export interface Toast { id: number; text: string; err?: boolean; action?: { label: string; run: () => void } }
 export interface UndoState { id: string; draft: Draft; status: 'paid' | 'pending' }
+/** What the Saved screen shows. */
+export interface LastSaved { id: string; amount: number; name: string; status: 'paid' | 'pending' }
 
 interface Ctx {
   user: AppUser;
@@ -28,8 +33,10 @@ interface Ctx {
   replace: (r: Route) => void;
   back: () => void;
   tab: (r: Route) => void;
-  toast: (text: string, err?: boolean) => void;
+  toast: (text: string, err?: boolean, action?: Toast['action']) => void;
   undo: UndoState | null;
+  lastSaved: LastSaved | null;
+  editRecord: (r: CashRecord, next: EditFields) => boolean;
   saveDraft: (d: Draft, allowDuplicate: boolean, status?: 'paid' | 'pending') => void;
   markPaid: (r: CashRecord) => void;
   undoSave: () => void;
@@ -64,14 +71,20 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [undo, setUndo] = useState<UndoState | null>(null);
   const toastId = useRef(0);
+  const [lastSaved, setLastSaved] = useState<LastSaved | null>(null);
   const undoTimer = useRef<number | undefined>(undefined);
+  const paidTimers = useRef(new Map<string, number>());
+  const recordsRef = useRef(records);
+  recordsRef.current = records;
+  const feesRef = useRef(fees);
+  feesRef.current = fees;
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
-  const toast = useCallback((text: string, err?: boolean) => {
+  const toast = useCallback((text: string, err?: boolean, action?: Toast['action']) => {
     const id = ++toastId.current;
-    setToasts((t) => [...t, { id, text, err }]);
-    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4500);
+    setToasts((t) => [...t, { id, text, err, action }]);
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), action ? 6500 : 4500);
   }, []);
 
   useEffect(() => {
@@ -155,14 +168,17 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
         byUid: user.uid,
         status,
       };
-      const { id } = api.saveRecord(rec, { allowDuplicate });
+      // An id can be taken by a record whose reference was corrected later. Then use a fresh id.
+      const idTaken = recordsRef.current.some((r) => r.id === rec.ref);
+      const { id } = api.saveRecord(rec, { allowDuplicate: allowDuplicate || idTaken });
       if (s.savePhoto && d.photo) api.savePhoto(id, d.photo);
       setUndo({ id, draft: d, status });
       window.clearTimeout(undoTimer.current);
       undoTimer.current = window.setTimeout(() => setUndo(null), 5000);
       void buzzSaved();
       void sendNtfy(topicRef.current, `${user.name}: ${peso(amount)} ${status === 'pending' ? 'pending' : 'cashed out'}`);
-      setStack([{ name: 'home' }]);
+      setLastSaved({ id, amount, name: rec.name, status });
+      setStack([{ name: 'home' }, { name: 'saved' }]);
     },
     [user],
   );
@@ -171,11 +187,53 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
     (r: CashRecord) => {
       api.markPaid(r.id, { uid: user.uid, name: user.name });
       void buzzSaved();
-      void sendNtfy(topicRef.current, `${r.by}: ${peso(r.amount)} cashed out\nPaid by ${user.name}.`);
-      toast('Marked as paid');
+      // Tell the other phones after the undo time is over.
+      window.clearTimeout(paidTimers.current.get(r.id));
+      paidTimers.current.set(
+        r.id,
+        window.setTimeout(() => {
+          paidTimers.current.delete(r.id);
+          void sendNtfy(topicRef.current, `${r.by}: ${peso(r.amount)} cashed out\nPaid by ${user.name}.`);
+        }, 6500),
+      );
+      toast('Marked as paid', false, {
+        label: 'Undo',
+        run: () => {
+          window.clearTimeout(paidTimers.current.get(r.id));
+          paidTimers.current.delete(r.id);
+          api.undoPaid(r.id);
+        },
+      });
     },
     [user, toast],
   );
+
+  const editRecord = useCallback(
+    (r: CashRecord, next: EditFields): boolean => {
+      const changes = diffFields(fieldsOf(r), next);
+      if (changes.length === 0) {
+        toast('Nothing was changed');
+        return false;
+      }
+      api.editRecord(r.id, next, [...(r.history ?? []), { at: Date.now(), by: user.name, byUid: user.uid, changes }]);
+      toast('Changes saved');
+      return true;
+    },
+    [user, toast],
+  );
+
+  // A receipt shared from GCash (or any app) opens Check and save.
+  useEffect(() => {
+    return listenShared(async (item: SharedItem) => {
+      try {
+        const ctx = { fees: feesRef.current, settings: settingsRef.current };
+        const draft = item.photo ? await draftFromPhoto(item.photo, ctx) : draftFromText(item.text ?? '', ctx);
+        setStack([{ name: 'home' }, { name: 'review', draft }]);
+      } catch {
+        toast('Could not open the shared receipt.', true);
+      }
+    });
+  }, [toast]);
 
   const undoSave = useCallback(() => {
     if (!undo) return;
@@ -198,7 +256,7 @@ export function AppProvider({ user, settings, updateSettings, children }: Props)
 
   return (
     <AppCtx.Provider
-      value={{ user, records, syncLabel, alertTopic, settings, updateSettings, fees, route, go, replace, back, tab, toast, undo, saveDraft, markPaid, undoSave, signOut }}
+      value={{ user, records, syncLabel, alertTopic, settings, updateSettings, fees, route, go, replace, back, tab, toast, undo, lastSaved, editRecord, saveDraft, markPaid, undoSave, signOut }}
     >
       {children({ route, toasts, denied })}
     </AppCtx.Provider>

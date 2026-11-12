@@ -19,6 +19,23 @@ export interface CashRecord {
   paidBy?: string;
   paidByUid?: string;
   paidAt?: number;
+  /** Every change made after saving, oldest first. Only the person who saved it can edit. */
+  history?: EditEntry[];
+  editedAt?: number;
+}
+
+export interface FieldChange {
+  /** ref, amount, fee, txAt, name or number. */
+  f: string;
+  from: string | number | null;
+  to: string | number | null;
+}
+
+export interface EditEntry {
+  at: number;
+  by: string;
+  byUid: string;
+  changes: FieldChange[];
 }
 
 export type NewRecord = Omit<CashRecord, 'id'>;
@@ -53,6 +70,8 @@ export interface Settings {
   ownNumbers: string[];
   /** Daily reminder at 8 PM to open Closing. */
   closingReminder: boolean;
+  /** The camera takes the photo by itself when the receipt is steady. */
+  autoCapture: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -65,6 +84,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ownNames: [],
   ownNumbers: [],
   closingReminder: false,
+  autoCapture: true,
 };
 
 export interface Draft {
@@ -84,6 +104,8 @@ export interface Draft {
   photo?: string;
   /** False when the app could not find a valid 13-digit reference. */
   refRead: boolean;
+  /** The name was filled in from an earlier record with the same number. */
+  autoName?: boolean;
 }
 
 export type Period = 'today' | 'yesterday' | 'week' | 'all' | 'custom';
@@ -112,5 +134,8 @@ export type Route =
   | { name: 'review'; draft: Draft }
   | { name: 'records'; period?: Period; status?: StatusFilter }
   | { name: 'detail'; id: string }
+  | { name: 'saved' }
+  | { name: 'edit'; id: string }
+  | { name: 'history'; id: string }
   | { name: 'settings' }
   | { name: 'fees' };

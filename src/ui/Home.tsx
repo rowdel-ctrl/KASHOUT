@@ -6,7 +6,7 @@ import { NavBar, RecRow } from './components';
 import { useApp } from './context';
 
 export function Home() {
-  const { user, records, syncLabel, go, tab, undo, undoSave } = useApp();
+  const { user, records, syncLabel, go, tab, undo, undoSave, markPaid } = useApp();
   // Paid today: cash that went out today. Pending records are counted apart.
   const day = summarize(applyFilters(records, { ...DEFAULT_FILTERS, period: 'today' }));
   const waiting = summarize(applyFilters(records, { ...DEFAULT_FILTERS, status: 'pending' }));
@@ -81,7 +81,7 @@ export function Home() {
               <div className="list">
                 {latest.map((r, i) => (
                   <div key={r.id} className={i >= 3 ? 'hide-narrow' : undefined}>
-                    <RecRow r={r} fresh={undo?.id === r.id} onClick={() => go({ name: 'detail', id: r.id })} />
+                    <RecRow r={r} fresh={undo?.id === r.id} onClick={() => go({ name: 'detail', id: r.id })} onMarkPaid={() => markPaid(r)} />
                   </div>
                 ))}
               </div>

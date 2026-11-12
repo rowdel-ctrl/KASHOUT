@@ -58,6 +58,26 @@ export function useLiveCamera() {
     }
   }, [torch]);
 
+  const small = useRef<HTMLCanvasElement | null>(null);
+
+  /** A tiny grey copy of the current frame (one byte per pixel), used to tell when the receipt is still. */
+  const grab = useCallback((width = 160): { gray: Uint8Array; w: number; h: number } | null => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) return null;
+    const w = width;
+    const h = Math.max(1, Math.round((width * v.videoHeight) / v.videoWidth));
+    const c = (small.current ??= document.createElement('canvas'));
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(v, 0, 0, w, h);
+    const px = ctx.getImageData(0, 0, w, h).data;
+    const gray = new Uint8Array(w * h);
+    for (let i = 0; i < gray.length; i++) gray[i] = (px[i * 4] * 77 + px[i * 4 + 1] * 150 + px[i * 4 + 2] * 29) >> 8;
+    return { gray, w, h };
+  }, []);
+
   /** Grabs the current frame as a JPEG picture. Returns null if the camera is not ready. */
   const capture = useCallback(async (): Promise<{ webPath: string } | null> => {
     const v = videoRef.current;
@@ -71,5 +91,5 @@ export function useLiveCamera() {
     return { webPath: URL.createObjectURL(blob) };
   }, []);
 
-  return { videoRef, state, retry: start, torch, torchOk, toggleTorch, capture };
+  return { videoRef, state, retry: start, torch, torchOk, toggleTorch, capture, grab };
 }
