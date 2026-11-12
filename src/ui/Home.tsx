@@ -48,7 +48,7 @@ export function Home() {
                 <span>
                   <b>{waiting.pendingCount} pending</b>
                   <span>
-                    {peso2(waiting.pendingTotal)} · oldest waiting {waited >= LATE_MS ? <em>{waitText(waited)}</em> : waitText(waited)}
+                    {peso2(waiting.pendingTotal)} · oldest {waited >= LATE_MS ? <em>{waitText(waited)}</em> : waitText(waited)}
                   </span>
                 </span>
                 <span className="see">See</span>

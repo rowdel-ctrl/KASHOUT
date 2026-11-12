@@ -165,8 +165,13 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
                   {sum.pendingCount} pending
                   {sum.oldestPending != null && ` · oldest waiting ${waitText(Date.now() - sum.oldestPending)}`}
                 </span>
+                <div className="acts">
+                  <button disabled={!shown.length} onClick={() => setSheet('export')}>
+                    <Icon name="download" size={18} /> Export
+                  </button>
+                </div>
               </section>
-            ) : null}
+            ) : (
             <section className="closing" aria-label="Closing">
               <div className="top">
                 <div>
@@ -174,7 +179,7 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
                   <b className="t">{peso(sum.total)}</b>
                   <span className="sub">
                     {sum.count} {sum.count === 1 ? 'cash-out' : 'cash-outs'} · Fees {peso2(sum.fees)}
-                    {sum.pendingCount > 0 && f.status !== 'pending' && ` · ${sum.pendingCount} pending ${peso(sum.pendingTotal)}`}
+                    {sum.pendingCount > 0 && ` · ${sum.pendingCount} pending ${peso(sum.pendingTotal)}`}
                   </span>
                 </div>
                 <button className="round" style={{ background: 'var(--green-soft)', color: 'var(--green-text)', boxShadow: 'none' }} aria-expanded={showWho} aria-label="Who saved" onClick={() => setShowWho(!showWho)}>
@@ -208,6 +213,7 @@ export function Records({ initialPeriod, initialStatus }: { initialPeriod?: Peri
                 </button>
               </div>
             </section>
+            )}
 
             {list}
           </div>

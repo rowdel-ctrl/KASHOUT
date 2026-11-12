@@ -8,6 +8,7 @@ Android app for a sari-sari store. Staff record every GCash cash-out by its **13
 - Same reference twice? The app warns and shows who saved it and when.
 - Warm green design with dark mode, adjustable text size, and a two-column layout on tablets.
 - Live camera with a frame guide. A phone camera app is the fallback.
+- Record now, give the cash later: **Save · Pending**, then **Mark as paid**. Pending records turn red after 2 hours. Totals and fees count only paid records.
 - Warnings for old receipts, big amounts and bad reference numbers. Undo for 5 seconds after Save.
 - Fee comes from the store's rate table (pick a tier or type one).
 - Records: search, dates (including a custom range), amount range, staff. The Closing totals sit at the top, with Send, Excel (CSV) and PDF export.

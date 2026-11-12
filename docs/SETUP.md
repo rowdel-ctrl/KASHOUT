@@ -143,7 +143,8 @@ Do these once, with fake or test receipts.
 6. **Alerts.** On phone A, open Settings and tap **Send a test alert**. Phone B (with alerts on) should show it. Then save a cash-out on phone A. Phone B should get "Name: amount cashed out".
 7. **Closing and export.** Open **Records**. The Closing card shows the total for the dates you chose. Tap **Send** for the summary alert, and **Export** for Excel or PDF.
 8. **Dark mode and text size.** Open **Settings** and try **Theme** and **Text size**.
-9. **Delete.** Open a record you saved and tap **Delete this record** twice. You cannot delete a record someone else saved.
+9. **Pending.** Scan a receipt and tap **Save · Pending**. Home shows an amber **pending** card. Open the record and tap **Mark as paid**. It turns green and shows who paid. On a second phone, check that the alerts say "pending" and then "cashed out".
+10. **Delete.** Open a record you saved and tap **Delete this record** twice. You cannot delete a record someone else saved.
 
 You can also test the security rules on a computer: `npm run test:rules` (needs Java).
 
