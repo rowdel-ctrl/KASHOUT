@@ -548,3 +548,26 @@ html[data-theme='dark'] .draftcard { --blue-bg: #1B2A3D; --blue-line: #4A86D6; -
 .rtabs button { min-width: 48px; }
 .switch { position: relative; }
 .switch::after { content: ''; position: absolute; inset: -8px -4px; }
+
+/* Phone held sideways: the scan controls sit beside the picture. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .scan { display: grid; grid-template-columns: minmax(0, 1fr) 132px; grid-template-rows: auto minmax(0, 1fr); grid-template-areas: 'bar bar' 'view shoot'; height: 100dvh; min-height: 0; padding: calc(var(--top) + 8px) 18px calc(var(--bottom) + 8px); column-gap: 14px; }
+  .scan .bar { grid-area: bar; }
+  .scan .tip { display: none; }
+  .scan .viewport { grid-area: view; min-height: 0; margin: 8px 0 0; max-width: none; align-self: stretch; border-radius: 24px; }
+  .scan .shoot { grid-area: shoot; flex-direction: column; justify-content: center; gap: 14px; padding: 0; max-width: none; align-self: center; }
+  .shutter { width: 72px; height: 72px; }
+}
+
+/* Short screens (sideways, or the keyboard is open): the Save bar becomes a slim row so the form stays visible. */
+@media (max-height: 520px) {
+  .savebar { padding: 8px 20px calc(8px + var(--bottom)); border-radius: 18px 18px 0 0; }
+  .savebar .in { max-width: 760px; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .savebar .in > * { flex: 1 1 200px; }
+  .savebar .in > .warnbar { flex-basis: 100%; }
+  .savebar .btn { height: 46px; font-size: 16px; }
+  .savebar .muted.small { display: none; }
+  .review { padding-bottom: calc(130px + var(--bottom)); }
+  .nav { height: calc(60px + var(--bottom)); padding-top: 4px; }
+  .page.has-nav { padding-bottom: calc(60px + var(--bottom) + 20px); }
+}
