@@ -27,7 +27,7 @@ export function NavBar({ active }: { active: 'home' | 'records' }) {
         {t('Home')}
       </button>
       <button className="scanbtn" aria-label={t('Scan a receipt')} onClick={() => go({ name: 'scan' })}>
-        <Icon name="camera" size={46} />
+        <Icon name="camera" size={42} />
       </button>
       <button className={`tab${active === 'records' ? ' on' : ''}`} aria-current={active === 'records' ? 'page' : undefined} onClick={() => tab({ name: 'records' })}>
         <Icon name="list" size={24} soft={active === 'records'} />
@@ -125,7 +125,7 @@ export function RecRow({ r, onClick, fresh, selected, q }: { r: CashRecord; onCl
         <i className="wd" style={{ background: walletColor(source) }} title={source} />
       </span>
       <span className="mid">
-        <div className="ref">
+        <div className={`ref${r.ref.length > 16 ? ' long' : ''}`}>
           {q && field === 'ref'
             ? highlightRef(r.ref, q).map((p, i) => (p.hit ? <mark key={i}>{p.t}</mark> : <span key={i}>{p.t}</span>))
             : formatRef(r.ref)}
