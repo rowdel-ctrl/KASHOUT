@@ -281,3 +281,14 @@ describe('money from another bank or wallet (InstaPay)', () => {
     expect(refKind('20263028LAUIPHM2XXXB000000609658881')).toBe(null);
   });
 });
+
+describe('bank reference followed by a date line', () => {
+  it('does not take the date on the next line as part of the reference', () => {
+    const r = extractRef('GCash Funds Received\nRef. No. 20261113LAUIPHM2XXXB000000645881411\n11-13-26 05:28 PM');
+    expect(r).toEqual({ ref: '20261113LAUIPHM2XXXB000000645881411', ok: true });
+  });
+  it('still joins a reference the reader split over two lines', () => {
+    const r = extractRef('Ref. No. 20261113LAUIPHM2XXXB\n000000645881411\n11-13-26 05:28 PM');
+    expect(r.ref).toBe('20261113LAUIPHM2XXXB000000645881411');
+  });
+});

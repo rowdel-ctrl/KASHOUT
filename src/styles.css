@@ -724,9 +724,13 @@ h1, h2, h3, .h1, .topbar h1, .sheet h2, .stat b, .rec .ref, .rec .amt, .bigref, 
 .rec .recmain .mid { flex: 1 0 auto; }
 .rec .right { flex: 0 1 auto; min-width: 0; }
 .rec .ref { overflow: visible; text-overflow: clip; }
-.rec .ref.long { white-space: normal; overflow-wrap: anywhere; font-size: 14px; }
 .rec .tag { height: auto; min-height: 22px; padding-top: 2px; padding-bottom: 2px; white-space: normal; text-align: center; line-height: 1.15; }
 
-/* A long bank reference (letters and digits, 35 characters) wraps inside its own space and never runs under the amount */
-.rec .ref.long { width: 0; min-width: 100%; font-size: 13.5px; letter-spacing: 0; line-height: 1.25; }
 .rec .right .when { white-space: nowrap; }
+
+/* A long bank reference in Details: the whole reference on its own lines, never wider than the screen */
+.kvs .kv { min-width: 0; }
+.kvs .kv b { min-width: 0; overflow-wrap: anywhere; }
+.kvs .kv.longref { flex-direction: column; gap: 4px; }
+.kvs .kv.longref b { text-align: left; font-size: 16px; letter-spacing: .2px; }
+.bigref { overflow-wrap: anywhere; }

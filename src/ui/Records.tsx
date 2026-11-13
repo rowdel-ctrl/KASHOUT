@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { api } from '../data';
 import { sharePdf } from '../lib/export';
-import { dateTime, formatRef, peso, peso2, shortDate, waitText } from '../lib/format';
+import { dateTime, formatRef, isLongRef, peso, peso2, shortDate, waitText } from '../lib/format';
 import { LATE_MS, activeFilterCount, applyFilters, dayLabel, groupByDay, isPending, periodLabel, staffNames, summarize, whenOf } from '../lib/records';
 import { WALLETS, sourceOf, walletColor } from '../lib/wallets';
 import { DEFAULT_FILTERS, type AmountBand, type Filters, type Period, type StatusFilter } from '../lib/types';
@@ -441,7 +441,7 @@ export function RecordDetail({ r, panel, onDeleted }: { r: CashRecord; panel?: b
       )}
 
       <div className="kvs">
-        <div className="kv">
+        <div className={`kv${isLongRef(r.ref) ? ' longref' : ''}`}>
           <span>{t('Reference number')}</span>
           <b>{formatRef(r.ref)}</b>
         </div>

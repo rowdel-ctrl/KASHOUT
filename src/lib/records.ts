@@ -1,4 +1,4 @@
-import { businessDayStart, DAY_CUTOFF_HOUR, dayKey, formatRef, shortDate } from './format';
+import { businessDayStart, DAY_CUTOFF_HOUR, dayKey, isLongRef, listRef, shortDate } from './format';
 import type { AmountBand, CashRecord, Filters, Period } from './types';
 import { sourceOf } from './wallets';
 
@@ -114,11 +114,27 @@ export function applyFilters(records: CashRecord[], f: Filters, now: number = Da
 
 /** The grouped reference with the typed digits marked, even when they run across a space. */
 export function highlightRef(ref: string, q: string): { t: string; hit: boolean }[] {
-  const grouped = formatRef(ref);
+  const grouped = listRef(ref);
   const needle = q.replace(/\s+/g, '');
   const start = needle ? ref.indexOf(needle) : -1;
   if (start < 0) return [{ t: grouped, hit: false }];
   const end = start + needle.length;
+  if (isLongRef(ref)) {
+    // Only the last 12 characters are shown, so mark the typed part inside them.
+    const first = ref.length - 12;
+    const out: { t: string; hit: boolean }[] = [];
+    let idx = first;
+    for (const ch of grouped) {
+      const real = ch !== '…' && ch !== ' ';
+      // A space between two marked characters is marked too, like in a GCash reference.
+      const hit = ch === '…' ? false : real ? idx >= start && idx < end : idx - 1 >= start && idx < end;
+      if (real) idx += 1;
+      const last = out[out.length - 1];
+      if (last && last.hit === hit) last.t += ch;
+      else out.push({ t: ch, hit });
+    }
+    return out;
+  }
   const out: { t: string; hit: boolean }[] = [];
   let digits = 0;
   for (const ch of grouped) {

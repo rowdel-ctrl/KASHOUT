@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { formatRef, peso, timeOf } from '../lib/format';
+import { listRef, peso, timeOf } from '../lib/format';
 import { LATE_MS, highlight, highlightRef, isPending, matchRecord, whenOf } from '../lib/records';
 import type { CashRecord } from '../lib/types';
 import { sourceOf, walletColor } from '../lib/wallets';
@@ -125,10 +125,10 @@ export function RecRow({ r, onClick, fresh, selected, q }: { r: CashRecord; onCl
         <i className="wd" style={{ background: walletColor(source) }} title={source} />
       </span>
       <span className="mid">
-        <div className={`ref${r.ref.length > 16 ? ' long' : ''}`}>
+        <div className="ref">
           {q && field === 'ref'
             ? highlightRef(r.ref, q).map((p, i) => (p.hit ? <mark key={i}>{p.t}</mark> : <span key={i}>{p.t}</span>))
-            : formatRef(r.ref)}
+            : listRef(r.ref)}
         </div>
         <div className="sub">
           <Hl text={r.name || t('No name')} q={field === 'name' ? q : undefined} /> · <Hl text={r.by} q={field === 'staff' ? q : undefined} />

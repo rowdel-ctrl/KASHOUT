@@ -97,6 +97,22 @@ export function formatRef(ref: string): string {
   return /^\d{13}$/.test(d) ? `${d.slice(0, 4)} ${d.slice(4, 8)} ${d.slice(8)}` : ref;
 }
 
+/** A long bank reference (letters and digits, 16+ characters). Its start is the same on every receipt. */
+export function isLongRef(ref: string): boolean {
+  return ref.length > 16;
+}
+
+/** The last 12 characters of a long reference, grouped like a GCash one: "0006 4588 1411". */
+export function refTail(ref: string): string {
+  const tail = ref.slice(-12);
+  return tail.replace(/(.{4})(?=.)/g, '$1 ');
+}
+
+/** The reference as written in a list row: GCash ones in full, long bank ones as "…" and the last 12. */
+export function listRef(ref: string): string {
+  return isLongRef(ref) ? `…${refTail(ref)}` : formatRef(ref);
+}
+
 /** How long something has been waiting: "25 min", "3 h", "2 d". */
 export function waitText(ms: number, tl = false): string {
   const min = Math.max(0, Math.floor(ms / 60_000));

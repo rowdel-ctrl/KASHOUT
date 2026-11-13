@@ -411,3 +411,27 @@ describe('the day starts at 2:00 AM', () => {
     expect(w2.find((x) => x.key === 'old')).toBeDefined();
   });
 });
+
+import { listRef, refTail, isLongRef } from '../src/lib/format';
+
+describe('long bank references in a list row', () => {
+  const bank = '20261113LAUIPHM2XXXB000000645881411'; // fake
+  it('GCash references stay whole and grouped', () => {
+    expect(isLongRef('0046276076549')).toBe(false);
+    expect(listRef('0046276076549')).toBe('0046 2760 76549');
+  });
+  it('a long bank reference shows "…" and its last 12 characters in groups of four', () => {
+    expect(isLongRef(bank)).toBe(true);
+    expect(refTail(bank)).toBe('0006 4588 1411');
+    expect(listRef(bank)).toBe('…0006 4588 1411');
+  });
+  it('marks typed last digits inside the shown tail, across a space', () => {
+    const parts = highlightRef(bank, '881411');
+    expect(parts.map((p) => p.t).join('')).toBe('…0006 4588 1411');
+    expect(parts.filter((p) => p.hit).map((p) => p.t).join('')).toBe('88 1411');
+  });
+  it('typed digits that are not in the shown tail mark nothing', () => {
+    const parts = highlightRef(bank, '20261113');
+    expect(parts).toEqual([{ t: '…0006 4588 1411', hit: false }]);
+  });
+});

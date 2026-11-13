@@ -33,7 +33,8 @@ function cleanDigits(s: string): string {
  */
 function bankRef(rest: string): string {
   const chunks: string[] = [];
-  const re = /\s*([A-Za-z0-9]+)/y;
+  // A piece followed by "-", ":" or "/" and a digit belongs to a date or time on the next line, not to the reference.
+  const re = /\s*([A-Za-z0-9]+)(?![A-Za-z0-9])(?![-:/]\d)/y;
   let pos = 0;
   while (chunks.length < 4) {
     re.lastIndex = pos;
