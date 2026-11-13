@@ -726,3 +726,7 @@ h1, h2, h3, .h1, .topbar h1, .sheet h2, .stat b, .rec .ref, .rec .amt, .bigref, 
 .rec .ref { overflow: visible; text-overflow: clip; }
 .rec .ref.long { white-space: normal; overflow-wrap: anywhere; font-size: 14px; }
 .rec .tag { height: auto; min-height: 22px; padding-top: 2px; padding-bottom: 2px; white-space: normal; text-align: center; line-height: 1.15; }
+
+/* A long bank reference (letters and digits, 35 characters) wraps inside its own space and never runs under the amount */
+.rec .ref.long { width: 0; min-width: 100%; font-size: 13.5px; letter-spacing: 0; line-height: 1.25; }
+.rec .right .when { white-space: nowrap; }
