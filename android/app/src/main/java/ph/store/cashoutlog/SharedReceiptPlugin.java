@@ -26,6 +26,8 @@ public class SharedReceiptPlugin extends Plugin {
     protected void handleOnNewIntent(Intent intent) {
         super.handleOnNewIntent(intent);
         if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) return;
+        // Opening the app again from the recent apps list hands back the old share. It is not a new share.
+        if ((intent.getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0) return;
 
         String type = intent.getType();
         Uri uri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri.class);
@@ -51,6 +53,10 @@ public class SharedReceiptPlugin extends Plugin {
             sharedPath = null;
             got = true;
         }
+
+        // The activity keeps the share as its launch intent, and Capacitor reads it again each time the activity
+        // is recreated. Replace it so one share opens one entry, once.
+        if (getActivity() != null) getActivity().setIntent(new Intent(Intent.ACTION_MAIN));
 
         if (got) {
             notifyListeners("shared", new JSObject());
