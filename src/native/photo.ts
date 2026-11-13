@@ -136,55 +136,143 @@ export async function makePhoto(webPath: string, maxWidth = 640): Promise<string
  * GCash's Share button sends only text, not a screenshot. This draws that text on a clean card.
  * Returns undefined where there is no page to draw on.
  */
-export function makeTextPhoto(text: string, title: string, footer: string): string | undefined {
+export function makeTextPhoto(text: string, opts: { title: string; date: string; note: string }): string | undefined {
   if (typeof document === 'undefined') return undefined;
   try {
+    // Drawn like the GCash Inbox message screen: blue bar, white card with the envelope, date, blue title, line, message.
     const W = 720;
-    const pad = 36;
-    const font = '600 28px Nunito, system-ui, sans-serif';
+    const BAR = 96;
+    const SIDE = 36;
+    const CARD_X = SIDE;
+    const CARD_W = W - SIDE * 2;
+    const TEXT_X = CARD_X + 40 + 22;
+    const TEXT_W = CARD_W - 80 - 44;
+    const face = 'Poppins, Nunito, system-ui, sans-serif';
+    const msgFont = `400 29px ${face}`;
     const probe = document.createElement('canvas').getContext('2d');
     if (!probe) return undefined;
-    probe.font = font;
-    // Wrap the words to the card width.
+    probe.font = msgFont;
+    // Wrap the words to the card, and break a word that is wider than the card (a long bank reference).
     const lines: string[] = [];
+    const push = (l: string) => lines.push(l);
     for (const para of text.replace(/\r/g, '').split('\n')) {
       let line = '';
       for (const word of para.split(/\s+/).filter(Boolean)) {
-        const next = line ? line + ' ' + word : word;
-        if (probe.measureText(next).width > W - pad * 2 && line) {
-          lines.push(line);
-          line = word;
-        } else line = next;
+        let w = word;
+        const next = line ? line + ' ' + w : w;
+        if (probe.measureText(next).width <= TEXT_W) {
+          line = next;
+          continue;
+        }
+        if (line) {
+          push(line);
+          line = '';
+        }
+        while (probe.measureText(w).width > TEXT_W) {
+          let n = w.length - 1;
+          while (n > 1 && probe.measureText(w.slice(0, n)).width > TEXT_W) n -= 1;
+          push(w.slice(0, n));
+          w = w.slice(n);
+        }
+        line = w;
       }
-      lines.push(line);
+      push(line);
       if (lines.length > 24) break;
     }
     const shown = lines.slice(0, 24);
-    const lineH = 42;
-    const head = 84;
-    const foot = 64;
-    const H = head + pad + shown.length * lineH + foot;
+    const lineH = 43.5;
+    const cardTop = BAR + 56;
+    const msgTop = cardTop + 237;
+    const cardBottom = msgTop + shown.length * lineH + 36;
+    const H = Math.ceil(cardBottom + 20 + 26 + 28);
     const c = document.createElement('canvas');
     c.width = W;
     c.height = H;
     const g = c.getContext('2d');
     if (!g) return undefined;
-    g.fillStyle = '#FFFFFF';
+
+    const icon = (d: string, x: number, y: number, size: number, color: string, width: number) => {
+      g.save();
+      g.translate(x, y);
+      g.scale(size / 24, size / 24);
+      g.strokeStyle = color;
+      g.lineWidth = width;
+      g.lineCap = 'round';
+      g.lineJoin = 'round';
+      g.stroke(new Path2D(d));
+      g.restore();
+    };
+    const circle = (cx: number, cy: number, r: number) => `M${cx + r} ${cy}A${r} ${r} 0 1 1 ${cx - r} ${cy}A${r} ${r} 0 1 1 ${cx + r} ${cy}`;
+    const rrect = (x: number, y: number, w: number, h: number, r: number) => {
+      g.beginPath();
+      g.moveTo(x + r, y);
+      g.arcTo(x + w, y, x + w, y + h, r);
+      g.arcTo(x + w, y + h, x, y + h, r);
+      g.arcTo(x, y + h, x, y, r);
+      g.arcTo(x, y, x + w, y, r);
+      g.closePath();
+    };
+
+    // Page and blue bar
+    g.fillStyle = '#F5F8FD';
     g.fillRect(0, 0, W, H);
-    g.fillStyle = '#1F7A4A';
-    g.fillRect(0, 0, W, head);
+    g.fillStyle = '#1A6FFF';
+    g.fillRect(0, 0, W, BAR);
+    icon('M20 12H4M10 6l-6 6 6 6', 32, 29, 38, '#FFFFFF', 2.4);
+    icon('M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6', W - 32 - 38, 29, 38, '#FFFFFF', 2.4);
     g.fillStyle = '#FFFFFF';
-    g.font = '800 30px Nunito, system-ui, sans-serif';
+    g.font = `500 34px ${face}`;
+    g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.fillText(title, pad, head / 2);
-    g.fillStyle = '#1D1B16';
-    g.font = font;
+    g.fillText('Inbox', W / 2, BAR / 2 + 2);
+
+    // Card
+    g.save();
+    g.shadowColor = 'rgba(40,60,100,0.16)';
+    g.shadowBlur = 10;
+    g.shadowOffsetY = 2;
+    g.fillStyle = '#FFFFFF';
+    rrect(CARD_X, cardTop, CARD_W, cardBottom - cardTop, 12);
+    g.fill();
+    g.restore();
+
+    // Envelope circle, with a ring in the page colour
+    g.fillStyle = '#F5F8FD';
+    g.beginPath();
+    g.arc(W / 2, cardTop, 56, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#1560F0';
+    g.beginPath();
+    g.arc(W / 2, cardTop, 48, 0, Math.PI * 2);
+    g.fill();
+    icon('M5.5 5h13a2.5 2.5 0 0 1 2.5 2.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 16.5v-9A2.5 2.5 0 0 1 5.5 5zM3.5 7l8.5 6 8.5-6', W / 2 - 23, cardTop - 23, 46, '#FFFFFF', 2.6);
+
+    // Date, share icon, title, line
+    g.textAlign = 'center';
     g.textBaseline = 'alphabetic';
-    shown.forEach((l, i) => g.fillText(l, pad, head + pad + 30 + i * lineH));
-    g.fillStyle = '#6B604F';
-    g.font = '700 22px Nunito, system-ui, sans-serif';
-    g.fillText(footer, pad, H - 26);
-    for (const q of [0.8, 0.7, 0.55]) {
+    g.fillStyle = '#6B7686';
+    g.font = `500 24px ${face}`;
+    g.fillText(opts.date, W / 2, cardTop + 70 + 23);
+    icon(`${circle(18, 5.5, 2.6)}${circle(6, 12, 2.6)}${circle(18, 18.5, 2.6)}M8.3 10.7l7.4-4M8.3 13.3l7.4 4`, CARD_X + CARD_W - 36 - 34, cardTop + 74, 34, '#1560F0', 2.4);
+    g.fillStyle = '#0B3FC4';
+    g.font = `500 40px ${face}`;
+    g.fillText(opts.title, W / 2, cardTop + 159);
+    g.fillStyle = '#DDE2EA';
+    g.fillRect(CARD_X + 40, cardTop + 205, CARD_W - 80, 2);
+
+    // Message
+    g.textAlign = 'left';
+    g.fillStyle = '#2B2F36';
+    g.font = msgFont;
+    shown.forEach((l, i) => g.fillText(l, TEXT_X, msgTop + 31 + i * lineH));
+
+    // Note under the card: this is a text copy, not a screenshot
+    g.textAlign = 'center';
+    g.fillStyle = '#7A8494';
+    g.font = `400 20px ${face}`;
+    g.fillText(opts.note, W / 2, cardBottom + 20 + 18);
+
+    for (const q of [0.85, 0.75, 0.6]) {
       const url = c.toDataURL('image/jpeg', q);
       if (url.length <= 150_000) return url;
     }

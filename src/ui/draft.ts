@@ -6,6 +6,7 @@ import { readText } from '../native/ocr';
 import { makePhoto, makeTextPhoto, makeThumb, type PickedPhoto } from '../native/photo';
 import { translate } from '../lib/i18n';
 import { dateTime } from '../lib/format';
+import { inboxDate, inboxTitle } from '../lib/inbox';
 
 export interface DraftContext {
   fees: FeeTier[];
@@ -60,7 +61,12 @@ export async function draftFromText(text: string, ctx: DraftContext, now: number
   // GCash's Share button sends only the message, and the date is not part of it. Use today, and say so.
   const out = d.txAt == null ? { ...d, txAt: now, dateGuess: true } : d;
   const lang = ctx.settings.lang;
-  const img = makeTextPhoto(text.trim(), translate(lang, 'GCash message'), translate(lang, 'Shared {when} · text copy, not a screenshot', { when: dateTime(now) }));
+  // Drawn like the GCash Inbox message. The date is the message's own when it has one, otherwise the time it was shared.
+  const img = makeTextPhoto(text.trim(), {
+    title: inboxTitle(text),
+    date: inboxDate(d.txAt ?? now),
+    note: translate(lang, 'Text copy shared {when}. Not a screenshot.', { when: dateTime(now) }),
+  });
   if (!img) return out;
   return { ...out, photo: img, photoUrl: img, thumb: await makeThumb(img) };
 }
