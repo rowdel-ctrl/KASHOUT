@@ -83,9 +83,9 @@ service cloud.firestore {
       allow update: if allowed() && (isMarkPaid() || isUndoPaid() || isOwnerEdit());
       // Only the person who saved a record can delete it (Undo and Delete).
       // Anyone on the list may delete a record older than one year (automatic cleanup).
-      allow delete: if allowed()
-        && (resource.data.byUid == request.auth.uid
-            || resource.data.savedAt < request.time.toMillis() - 31536000000);
+      allow delete: if allowed() && (
+        resource.data.byUid == request.auth.uid ||
+        resource.data.savedAt < request.time.toMillis() - 31536000000);
     }
 
     // The sharper receipt photo, one per record (same id as the record). Kept apart from the
@@ -99,10 +99,10 @@ service cloud.firestore {
         && request.resource.data.data is string
         && request.resource.data.data.size() <= 200000;
       allow update: if false;
-      allow delete: if allowed()
-        && (resource == null
-            || resource.data.byUid == request.auth.uid
-            || resource.data.savedAt < request.time.toMillis() - 31536000000);
+      allow delete: if allowed() && (
+        resource == null ||
+        resource.data.byUid == request.auth.uid ||
+        resource.data.savedAt < request.time.toMillis() - 31536000000);
     }
 
     // Shared app settings: the fee table, and the alert topic.
